@@ -1,0 +1,125 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f2f2f2;
+    color: #222;
+}
+
+.container {
+    width: 90%;
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 30px;
+    background: white;
+    border-radius: 12px;
+}
+
+h1 {
+    margin-top: 0;
+}
+
+.search-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.search-form label {
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.search-form input {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+.search-form button {
+    margin-top: 10px;
+    padding: 12px;
+    font-size: 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: #333;
+    color: white;
+}
+
+.search-form button:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}
+
+#results {
+    margin-top: 30px;
+}
+
+.results-header {
+    margin-bottom: 15px;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.result-card {
+    margin-bottom: 15px;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    background: #fafafa;
+}
+
+.result-card h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.result-price {
+    margin-bottom: 8px;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.result-count {
+    margin-bottom: 8px;
+}
+
+.result-description {
+    margin-top: 15px;
+    padding: 12px;
+    background: white;
+    border-radius: 6px;
+    line-height: 1.5;
+}
+
+.result-identifiers {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #777;
+}
+
+.market-link {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 10px 15px;
+    border-radius: 6px;
+    background: #333;
+    color: white;
+    text-decoration: none;
+}
+
+.market-link:hover {
+    opacity: 0.8;
+}
+
+.message {
+    padding: 15px;
+    border-radius: 6px;
+    background: #f5f5f5;
+}
