@@ -2,7 +2,10 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Dota 2 Market Parser</title>
 
@@ -18,8 +21,8 @@
 
     <h1>Dota 2 Market Parser</h1>
 
-    <p>
-        Поиск предметов по названию и описанию
+    <p class="subtitle">
+        Поиск предметов по названию, качеству и описанию
     </p>
 
     <div class="search-form">
@@ -31,8 +34,93 @@
         <input
             id="item-name"
             type="text"
-            placeholder="Например: Dragonclaw Hook"
+            placeholder="Например: Fractal Horns of Inner Abysm"
         >
+
+        <label>
+            Качество
+        </label>
+
+        <div class="quality-selector">
+
+            <button
+                type="button"
+                id="quality-button"
+                class="quality-button"
+            >
+                <span id="quality-button-text">
+                    Все качества
+                </span>
+
+                <span class="quality-arrow">
+                    ▼
+                </span>
+            </button>
+
+            <div
+                id="quality-dropdown"
+                class="quality-dropdown"
+            >
+
+                <label class="quality-option">
+                    <input
+                        type="checkbox"
+                        value="all"
+                        checked
+                    >
+                    <span>Все</span>
+                </label>
+
+                <label class="quality-option">
+                    <input
+                        type="checkbox"
+                        value="normal"
+                    >
+                    <span>Обычный</span>
+                </label>
+
+                <label class="quality-option">
+                    <input
+                        type="checkbox"
+                        value="exalted"
+                    >
+                    <span>Exalted</span>
+                </label>
+
+                <label class="quality-option">
+                    <input
+                        type="checkbox"
+                        value="inscribed"
+                    >
+                    <span>Inscribed</span>
+                </label>
+
+                <label class="quality-option">
+                    <input
+                        type="checkbox"
+                        value="autographed"
+                    >
+                    <span>Autographed</span>
+                </label>
+
+                <label class="quality-option">
+                    <input
+                        type="checkbox"
+                        value="heroic"
+                    >
+                    <span>Heroic</span>
+                </label>
+
+                <label class="quality-option">
+                    <input
+                        type="checkbox"
+                        value="corrupted"
+                    >
+                    <span>Corrupted</span>
+                </label>
+
+            </div>
+        </div>
 
         <label for="description">
             Описание
@@ -41,7 +129,7 @@
         <input
             id="description"
             type="text"
-            placeholder="Например: Exalted"
+            placeholder="Например: Tnim S'nnam"
         >
 
         <button id="search-button">
@@ -56,7 +144,9 @@
 
 </div>
 
-<script src="{{ url_for('static', path='js/app.js') }}"></script>
+<script
+    src="{{ url_for('static', path='js/app.js') }}"
+></script>
 
 </body>
 </html>
