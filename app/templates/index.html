@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -25,6 +26,11 @@
         Поиск предметов по названию, качеству и описанию
     </p>
 
+
+    <!-- =========================
+         ФОРМА ПОИСКА
+         ========================= -->
+
     <div class="search-form">
 
         <label for="item-name">
@@ -36,6 +42,9 @@
             type="text"
             placeholder="Например: Fractal Horns of Inner Abysm"
         >
+
+
+        <!-- Выбор качества -->
 
         <label>
             Качество
@@ -65,6 +74,7 @@
                 <label class="quality-option">
                     <input
                         type="checkbox"
+                        name="quality"
                         value="all"
                         checked
                     >
@@ -74,6 +84,7 @@
                 <label class="quality-option">
                     <input
                         type="checkbox"
+                        name="quality"
                         value="normal"
                     >
                     <span>Обычный</span>
@@ -82,6 +93,7 @@
                 <label class="quality-option">
                     <input
                         type="checkbox"
+                        name="quality"
                         value="exalted"
                     >
                     <span>Exalted</span>
@@ -90,6 +102,7 @@
                 <label class="quality-option">
                     <input
                         type="checkbox"
+                        name="quality"
                         value="inscribed"
                     >
                     <span>Inscribed</span>
@@ -98,6 +111,7 @@
                 <label class="quality-option">
                     <input
                         type="checkbox"
+                        name="quality"
                         value="autographed"
                     >
                     <span>Autographed</span>
@@ -106,6 +120,7 @@
                 <label class="quality-option">
                     <input
                         type="checkbox"
+                        name="quality"
                         value="heroic"
                     >
                     <span>Heroic</span>
@@ -114,6 +129,7 @@
                 <label class="quality-option">
                     <input
                         type="checkbox"
+                        name="quality"
                         value="corrupted"
                     >
                     <span>Corrupted</span>
@@ -121,6 +137,9 @@
 
             </div>
         </div>
+
+
+        <!-- Описание -->
 
         <label for="description">
             Описание
@@ -132,17 +151,97 @@
             placeholder="Например: Tnim S'nnam"
         >
 
-        <button id="search-button">
+
+        <!-- Кнопка -->
+
+        <button
+            id="search-button"
+            type="button"
+        >
             Найти
         </button>
 
     </div>
 
+
+    <!-- =========================
+         ПРОГРЕСС ПОИСКА
+         ========================= -->
+
+    <div
+        id="progress-container"
+        class="search-progress"
+        style="display: none;"
+    >
+
+        <div class="progress-header">
+
+            <div
+                id="progress-stage"
+                class="progress-stage"
+            >
+                Подготовка поиска
+            </div>
+
+            <div
+                id="progress-percent"
+                class="progress-percent"
+            >
+                0%
+            </div>
+
+        </div>
+
+
+        <!-- Полоса прогресса -->
+
+        <div class="progress-bar">
+
+            <div
+                id="progress-fill"
+                class="progress-fill"
+                style="width: 0%;"
+            ></div>
+
+        </div>
+
+
+        <!-- Текущее действие -->
+
+        <div
+            id="progress-message"
+            class="progress-message"
+        >
+            Подготавливаем поиск...
+        </div>
+
+
+        <!-- Подробная информация -->
+
+        <div
+            id="progress-details"
+            class="progress-details"
+        >
+            Ожидание начала поиска...
+        </div>
+
+    </div>
+
+
+    <!-- =========================
+         РЕЗУЛЬТАТЫ
+         ========================= -->
+
     <div id="results">
-        Результаты поиска появятся здесь.
+
+        <div class="message">
+            Результаты поиска появятся здесь.
+        </div>
+
     </div>
 
 </div>
+
 
 <script
     src="{{ url_for('static', path='js/app.js') }}"

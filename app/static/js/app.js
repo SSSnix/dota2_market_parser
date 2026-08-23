@@ -19,11 +19,20 @@ const qualityButtonText =
 const qualityDropdown =
     document.getElementById("quality-dropdown");
 
-const qualityCheckboxes =
+const qualityInputs =
     document.querySelectorAll(
-        ".quality-option input"
+        'input[name="quality"]'
     );
 
+const allQualityInput =
+    document.querySelector(
+        'input[name="quality"][value="all"]'
+    );
+
+
+/* =========================================================
+   MESSAGES
+   ========================================================= */
 
 function showMessage(message) {
     resultsContainer.innerHTML = "";
@@ -31,8 +40,11 @@ function showMessage(message) {
     const messageElement =
         document.createElement("div");
 
-    messageElement.className = "message";
-    messageElement.textContent = message;
+    messageElement.className =
+        "message";
+
+    messageElement.textContent =
+        message;
 
     resultsContainer.appendChild(
         messageElement
@@ -40,45 +52,113 @@ function showMessage(message) {
 }
 
 
+/* =========================================================
+   QUALITY DROPDOWN
+   ========================================================= */
+
+function closeQualityDropdown() {
+    if (!qualityDropdown) {
+        return;
+    }
+
+    qualityDropdown.classList.remove(
+        "is-open"
+    );
+
+    if (qualityButton) {
+        qualityButton.classList.remove(
+            "is-open"
+        );
+    }
+}
+
+
+function openQualityDropdown() {
+    if (!qualityDropdown) {
+        return;
+    }
+
+    qualityDropdown.classList.add(
+        "is-open"
+    );
+
+    if (qualityButton) {
+        qualityButton.classList.add(
+            "is-open"
+        );
+    }
+}
+
+
+function toggleQualityDropdown() {
+    if (!qualityDropdown) {
+        return;
+    }
+
+    if (
+        qualityDropdown.classList.contains(
+            "is-open"
+        )
+    ) {
+        closeQualityDropdown();
+    } else {
+        openQualityDropdown();
+    }
+}
+
+
 function getSelectedQualities() {
+    if (!qualityInputs.length) {
+        return ["all"];
+    }
+
     const selected = [];
 
-    qualityCheckboxes.forEach(
-        (checkbox) => {
-            if (
-                checkbox.checked
-                && checkbox.value !== "all"
-            ) {
-                selected.push(checkbox.value);
+    qualityInputs.forEach(
+        (input) => {
+            if (input.checked) {
+                selected.push(
+                    input.value
+                );
             }
         }
     );
+
+    if (
+        selected.length === 0
+    ) {
+        return ["all"];
+    }
+
+    if (
+        selected.includes("all")
+    ) {
+        return ["all"];
+    }
 
     return selected;
 }
 
 
 function updateQualityButtonText() {
-    const allCheckbox =
-        document.querySelector(
-            '.quality-option input[value="all"]'
-        );
+    if (!qualityButtonText) {
+        return;
+    }
 
-    if (allCheckbox.checked) {
+    const selected =
+        getSelectedQualities();
+
+    if (
+        selected.length === 1
+        && selected[0] === "all"
+    ) {
         qualityButtonText.textContent =
             "Все качества";
+
         return;
     }
 
-    const selected = getSelectedQualities();
-
-    if (selected.length === 0) {
-        qualityButtonText.textContent =
-            "Выберите качество";
-        return;
-    }
-
-    const names = {
+    const labels = {
         normal: "Обычный",
         exalted: "Exalted",
         inscribed: "Inscribed",
@@ -87,107 +167,372 @@ function updateQualityButtonText() {
         corrupted: "Corrupted",
     };
 
-    if (selected.length === 1) {
-        qualityButtonText.textContent =
-            names[selected[0]];
-        return;
-    }
+    const selectedLabels =
+        selected
+            .map(
+                (value) =>
+                    labels[value] || value
+            );
 
     qualityButtonText.textContent =
-        `Выбрано: ${selected.length}`;
+        selectedLabels.join(", ");
 }
 
 
-function handleQualityChange(event) {
-    const changedCheckbox =
-        event.target;
+function setupQualityDropdown() {
+    if (
+        !qualityButton
+        || !qualityDropdown
+        || !qualityInputs.length
+    ) {
+        return;
+    }
 
-    const allCheckbox =
-        document.querySelector(
-            '.quality-option input[value="all"]'
-        );
+    qualityButton.addEventListener(
+        "click",
+        (event) => {
+            event.stopPropagation();
+            toggleQualityDropdown();
+        }
+    );
 
-    if (changedCheckbox.value === "all") {
-        if (changedCheckbox.checked) {
-            qualityCheckboxes.forEach(
-                (checkbox) => {
+    qualityDropdown.addEventListener(
+        "click",
+        (event) => {
+            event.stopPropagation();
+        }
+    );
+
+    qualityInputs.forEach(
+        (input) => {
+            input.addEventListener(
+                "change",
+                () => {
                     if (
-                        checkbox.value !== "all"
+                        input ===
+                        allQualityInput
                     ) {
-                        checkbox.checked = false;
+                        if (
+                            input.checked
+                        ) {
+                            qualityInputs.forEach(
+                                (other) => {
+                                    if (
+                                        other !==
+                                        allQualityInput
+                                    ) {
+                                        other.checked =
+                                            false;
+                                    }
+                                }
+                            );
+                        } else {
+                            const anySelected =
+                                Array.from(
+                                    qualityInputs
+                                ).some(
+                                    (other) =>
+                                        other !==
+                                            allQualityInput
+                                        && other.checked
+                                );
+
+                            if (
+                                !anySelected
+                                && allQualityInput
+                            ) {
+                                allQualityInput.checked =
+                                    true;
+                            }
+                        }
+                    } else if (
+                        input.checked
+                    ) {
+                        if (
+                            allQualityInput
+                        ) {
+                            allQualityInput.checked =
+                                false;
+                        }
+                    } else {
+                        const anySelected =
+                            Array.from(
+                                qualityInputs
+                            ).some(
+                                (other) =>
+                                    other !==
+                                        allQualityInput
+                                    && other.checked
+                            );
+
+                        if (
+                            !anySelected
+                            && allQualityInput
+                        ) {
+                            allQualityInput.checked =
+                                true;
+                        }
                     }
+
+                    updateQualityButtonText();
                 }
             );
         }
-    } else {
-        allCheckbox.checked = false;
-
-        const selected =
-            getSelectedQualities();
-
-        if (selected.length === 0) {
-            allCheckbox.checked = true;
-        }
-    }
+    );
 
     updateQualityButtonText();
 }
 
 
-qualityCheckboxes.forEach(
-    (checkbox) => {
-        checkbox.addEventListener(
-            "change",
-            handleQualityChange
-        );
-    }
-);
-
-
-qualityButton.addEventListener(
-    "click",
-    () => {
-        qualityDropdown.classList.toggle(
-            "open"
-        );
-    }
-);
-
-
 document.addEventListener(
     "click",
-    (event) => {
-        if (
-            !qualityDropdown.contains(
-                event.target
-            )
-            && !qualityButton.contains(
-                event.target
-            )
-        ) {
-            qualityDropdown.classList.remove(
-                "open"
-            );
-        }
+    () => {
+        closeQualityDropdown();
     }
 );
 
+
+/* =========================================================
+   PROGRESS
+   ========================================================= */
+
+function showProgressBlock() {
+    const progressContainer =
+        document.getElementById(
+            "progress-container"
+        );
+
+    if (!progressContainer) {
+        return;
+    }
+
+    progressContainer.style.display =
+        "block";
+
+    const percent =
+        document.getElementById(
+            "progress-percent"
+        );
+
+    const fill =
+        document.getElementById(
+            "progress-fill"
+        );
+
+    const stage =
+        document.getElementById(
+            "progress-stage"
+        );
+
+    const message =
+        document.getElementById(
+            "progress-message"
+        );
+
+    const details =
+        document.getElementById(
+            "progress-details"
+        );
+
+    if (percent) {
+        percent.textContent = "0%";
+    }
+
+    if (fill) {
+        fill.style.width = "0%";
+    }
+
+    if (stage) {
+        stage.textContent =
+            "Подготовка поиска";
+    }
+
+    if (message) {
+        message.textContent =
+            "Подготавливаем поиск...";
+    }
+
+    if (details) {
+        details.textContent =
+            "Ожидание начала поиска...";
+    }
+}
+
+
+function updateProgress(data) {
+    const percentElement =
+        document.getElementById(
+            "progress-percent"
+        );
+
+    const fillElement =
+        document.getElementById(
+            "progress-fill"
+        );
+
+    const stageElement =
+        document.getElementById(
+            "progress-stage"
+        );
+
+    const messageElement =
+        document.getElementById(
+            "progress-message"
+        );
+
+    const detailsElement =
+        document.getElementById(
+            "progress-details"
+        );
+
+    if (!percentElement || !fillElement) {
+        return;
+    }
+
+    const rawPercent =
+        Number(data?.percent);
+
+    const percent =
+        Number.isFinite(rawPercent)
+            ? Math.max(
+                0,
+                Math.min(
+                    100,
+                    rawPercent
+                )
+            )
+            : 0;
+
+    percentElement.textContent =
+        `${percent}%`;
+
+    fillElement.style.width =
+        `${percent}%`;
+
+    if (stageElement) {
+        stageElement.textContent =
+            data?.stage || "Поиск";
+    }
+
+    if (messageElement) {
+        messageElement.textContent =
+            data?.message || "";
+    }
+
+    if (!detailsElement) {
+        return;
+    }
+
+    const details = [];
+
+    if (
+        data?.quality_number !== undefined
+        && data?.quality_total !== undefined
+    ) {
+        details.push(
+            `Качество: `
+            + `${data.quality_number}/`
+            + `${data.quality_total}`
+        );
+    }
+
+    if (
+        data?.found_for_quality !== undefined
+    ) {
+        details.push(
+            `Для качества: `
+            + `${data.found_for_quality}`
+        );
+    }
+
+    if (
+        data?.total_found !== undefined
+    ) {
+        details.push(
+            `Всего найдено: `
+            + `${data.total_found}`
+        );
+    }
+
+    if (
+        data?.batch !== undefined
+        && data?.total_batches !== undefined
+    ) {
+        details.push(
+            `MassInfo: `
+            + `${data.batch}/`
+            + `${data.total_batches}`
+        );
+    }
+
+    if (
+        data?.processed !== undefined
+        && data?.total_items !== undefined
+    ) {
+        details.push(
+            `Обработано: `
+            + `${data.processed}/`
+            + `${data.total_items}`
+        );
+    }
+
+    if (
+        data?.descriptions !== undefined
+    ) {
+        details.push(
+            `Получено описаний: `
+            + `${data.descriptions}`
+        );
+    }
+
+    if (
+        data?.checked !== undefined
+        && data?.total !== undefined
+    ) {
+        details.push(
+            `Проверено: `
+            + `${data.checked}/`
+            + `${data.total}`
+        );
+    }
+
+    if (
+        data?.matches !== undefined
+    ) {
+        details.push(
+            `Совпадений: `
+            + `${data.matches}`
+        );
+    }
+
+    detailsElement.textContent =
+        details.length > 0
+            ? details.join(" • ")
+            : "Обработка...";
+}
+
+/* =========================================================
+   RESULT CARD
+   ========================================================= */
 
 function createResultCard(item) {
     const card =
         document.createElement("div");
 
-    card.className = "result-card";
+    card.className =
+        "result-card";
 
     const title =
         document.createElement("h3");
 
-    title.textContent = item.name;
+    title.textContent =
+        item.name;
 
     const price =
         document.createElement("div");
 
-    price.className = "result-price";
+    price.className =
+        "result-price";
 
     price.textContent =
         item.price_rub !== null
@@ -197,10 +542,13 @@ function createResultCard(item) {
     const offers =
         document.createElement("div");
 
-    offers.className = "result-count";
+    offers.className =
+        "result-count";
 
     offers.textContent =
-        `Предложений: ${item.offers ?? "неизвестно"}`;
+        `Offers: ${
+            item.offers ?? "неизвестно"
+        }`;
 
     const identifiers =
         document.createElement("div");
@@ -209,8 +557,8 @@ function createResultCard(item) {
         "result-identifiers";
 
     identifiers.textContent =
-        `Class: ${item.class_id} | `
-        + `Instance: ${item.instance_id}`;
+        `Class: ${item.class_id}`
+        + ` | Instance: ${item.instance_id}`;
 
     const description =
         document.createElement("div");
@@ -220,16 +568,25 @@ function createResultCard(item) {
 
     description.textContent =
         item.description_text
-            || "Описание отсутствует";
+        || "Описание отсутствует";
 
     const link =
         document.createElement("a");
 
-    link.className = "market-link";
-    link.href = item.url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = "Открыть на Market";
+    link.className =
+        "market-link";
+
+    link.href =
+        item.url;
+
+    link.target =
+        "_blank";
+
+    link.rel =
+        "noopener noreferrer";
+
+    link.textContent =
+        "Открыть на Market";
 
     card.appendChild(title);
     card.appendChild(price);
@@ -242,7 +599,10 @@ function createResultCard(item) {
 }
 
 
-function renderResults(data) {
+function renderResults(
+    data,
+    elapsedSeconds
+) {
     resultsContainer.innerHTML = "";
 
     if (
@@ -251,27 +611,103 @@ function renderResults(data) {
     ) {
         showMessage(
             "Подходящих предметов не найдено."
+            + ` Время поиска: `
+            + `${elapsedSeconds.toFixed(1)} сек.`
         );
+
         return;
     }
 
     const header =
         document.createElement("div");
 
-    header.className = "results-header";
+    header.className =
+        "results-header";
 
-    header.textContent =
+    const title =
+        document.createElement("strong");
+
+    title.textContent =
+        "Поиск завершён";
+
+    const count =
+        document.createElement("span");
+
+    count.textContent =
         `Найдено вариантов: ${data.count}`;
 
-    resultsContainer.appendChild(header);
+    const time =
+        document.createElement("span");
 
-    for (const item of data.items) {
+    time.textContent =
+        `Время: ${elapsedSeconds.toFixed(1)} сек.`;
+
+    header.appendChild(title);
+    header.appendChild(count);
+    header.appendChild(time);
+
+    resultsContainer.appendChild(
+        header
+    );
+
+    for (
+        const item of data.items
+    ) {
         resultsContainer.appendChild(
             createResultCard(item)
         );
     }
 }
 
+
+/* =========================================================
+   ERRORS
+   ========================================================= */
+
+function formatError(data) {
+    if (!data) {
+        return "Неизвестная ошибка";
+    }
+
+    if (
+        Array.isArray(data.detail)
+    ) {
+        return data.detail
+            .map(
+                (error) => {
+                    const location =
+                        error.loc
+                            ? error.loc.join(".")
+                            : "";
+
+                    return (
+                        `${location}: `
+                        + `${error.msg}`
+                    );
+                }
+            )
+            .join("; ");
+    }
+
+    if (data.detail) {
+        return String(
+            data.detail
+        );
+    }
+
+    if (data.message) {
+        return String(
+            data.message
+        );
+    }
+
+    return "Ошибка поиска";
+}
+
+
+/* =========================================================
+   SEARCH
+   ========================================================= */
 
 async function searchItems() {
     const itemName =
@@ -284,6 +720,7 @@ async function searchItems() {
         showMessage(
             "Введите название предмета."
         );
+
         return;
     }
 
@@ -291,36 +728,25 @@ async function searchItems() {
         showMessage(
             "Введите описание."
         );
+
         return;
     }
 
-    searchButton.disabled = true;
-    searchButton.textContent = "Поиск...";
+    const qualities =
+        getSelectedQualities();
 
-    showMessage(
-        "Ищем предметы..."
-    );
+    searchButton.disabled =
+        true;
+
+    searchButton.textContent =
+        "Поиск...";
+
+    showProgressBlock();
+
+    const startTime =
+        performance.now();
 
     try {
-        const selected =
-            getSelectedQualities();
-
-        const allCheckbox =
-            document.querySelector(
-                '.quality-option input[value="all"]'
-            );
-
-        let qualities;
-
-        if (
-            allCheckbox.checked
-            || selected.length === 0
-        ) {
-            qualities = ["all"];
-        } else {
-            qualities = selected;
-        }
-
         const params =
             new URLSearchParams();
 
@@ -344,67 +770,175 @@ async function searchItems() {
                 "/api/search",
                 {
                     method: "POST",
+
                     headers: {
                         "Content-Type":
-                            "application/x-www-form-urlencoded",
+                            "application/"
+                            + "x-www-form-urlencoded",
                     },
-                    body: params.toString(),
+
+                    body:
+                        params.toString(),
                 }
             );
 
-        const responseText =
-            await response.text();
-
-        let data;
-
-        try {
-            data = JSON.parse(
-                responseText
-            );
-        } catch {
-            throw new Error(
-                `Сервер вернул некорректный ответ: `
-                + `${responseText.slice(0, 200)}`
-            );
-        }
-
         if (!response.ok) {
-            let errorMessage = "Ошибка поиска";
+            let errorData = null;
 
-            if (Array.isArray(data.detail)) {
-                errorMessage = data.detail
-                    .map((error) => {
-                        const location =
-                            error.loc
-                                ? error.loc.join(".")
-                                : "";
+            const responseText =
+                await response.text();
 
-                        return (
-                            `${location}: `
-                            + `${error.msg}`
-                        );
-                    })
-                    .join("; ");
-            } else if (data.detail) {
-                errorMessage = String(
-                    data.detail
+            try {
+                errorData =
+                    JSON.parse(
+                        responseText
+                    );
+            } catch {
+                throw new Error(
+                    responseText
+                    || `HTTP ${response.status}`
                 );
             }
 
-            throw new Error(errorMessage);
+            throw new Error(
+                formatError(errorData)
+            );
         }
 
-        renderResults(data);
+        if (!response.body) {
+            throw new Error(
+                "Браузер не поддерживает "
+                + "потоковый ответ."
+            );
+        }
+
+        const reader =
+            response.body.getReader();
+
+        const decoder =
+            new TextDecoder();
+
+        let buffer = "";
+        let resultData = null;
+
+        while (true) {
+            const {
+                value,
+                done,
+            } = await reader.read();
+
+            if (done) {
+                break;
+            }
+
+            buffer += decoder.decode(
+                value,
+                {
+                    stream: true,
+                }
+            );
+
+            const lines =
+                buffer.split("\n");
+
+            buffer =
+                lines.pop() || "";
+
+            for (
+                const line of lines
+            ) {
+                if (!line.trim()) {
+                    continue;
+                }
+
+                let event;
+
+                try {
+                    event =
+                        JSON.parse(line);
+                } catch {
+                    continue;
+                }
+
+                if (
+                    event.event ===
+                    "progress"
+                ) {
+                    updateProgress(
+                        event.data
+                    );
+                }
+
+                if (
+                    event.event ===
+                    "result"
+                ) {
+                    resultData =
+                        event.data;
+                }
+
+                if (
+                    event.event ===
+                    "error"
+                ) {
+                    throw new Error(
+                        event.data.message
+                    );
+                }
+            }
+        }
+
+        if (!resultData) {
+            throw new Error(
+                "Сервер не вернул "
+                + "результат поиска."
+            );
+        }
+
+        updateProgress({
+            percent: 100,
+            stage: "Готово",
+            message:
+                "Поиск завершён",
+            matches:
+                resultData.count,
+        });
+
+        const elapsedSeconds =
+            (
+                performance.now()
+                - startTime
+            ) / 1000;
+
+        await new Promise(
+            (resolve) =>
+                setTimeout(
+                    resolve,
+                    300
+                )
+        );
+
+        renderResults(
+            resultData,
+            elapsedSeconds
+        );
     } catch (error) {
         showMessage(
             `Ошибка: ${error.message}`
         );
     } finally {
-        searchButton.disabled = false;
-        searchButton.textContent = "Найти";
+        searchButton.disabled =
+            false;
+
+        searchButton.textContent =
+            "Найти";
     }
 }
 
+
+/* =========================================================
+   EVENTS
+   ========================================================= */
 
 searchButton.addEventListener(
     "click",
@@ -412,7 +946,10 @@ searchButton.addEventListener(
 );
 
 
-[itemNameInput, descriptionInput].forEach(
+[
+    itemNameInput,
+    descriptionInput,
+].forEach(
     (input) => {
         input.addEventListener(
             "keydown",
@@ -426,3 +963,6 @@ searchButton.addEventListener(
         );
     }
 );
+
+
+setupQualityDropdown();

@@ -6,6 +6,7 @@ from urllib.parse import quote
 import httpx
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
 
@@ -20,6 +21,18 @@ class MarketAPI:
                 "MARKET_API_KEY не найден в файле .env"
             )
 
+        self.client = httpx.AsyncClient(
+            timeout=httpx.Timeout(
+                connect=10.0,
+                read=60.0,
+                write=60.0,
+                pool=10.0,
+            ),
+        )
+
+    async def close(self) -> None:
+        await self.client.aclose()
+
     async def search_item(
         self,
         market_hash_name: str,
@@ -33,13 +46,10 @@ class MarketAPI:
             "key": self.api_key,
         }
 
-        async with httpx.AsyncClient(
-            timeout=30.0
-        ) as client:
-            response = await client.get(
-                url,
-                params=params,
-            )
+        response = await self.client.get(
+            url,
+            params=params,
+        )
 
         response.raise_for_status()
 
@@ -51,7 +61,9 @@ class MarketAPI:
         instance_id: int,
         language: str = "en",
     ) -> dict[str, Any]:
-        item_hash = f"{class_id}_{instance_id}"
+        item_hash = (
+            f"{class_id}_{instance_id}"
+        )
 
         url = (
             f"{self.BASE_URL}/ItemInfo/"
@@ -62,25 +74,22 @@ class MarketAPI:
             "key": self.api_key,
         }
 
-        async with httpx.AsyncClient(
-            timeout=30.0
-        ) as client:
-            response = await client.get(
-                url,
-                params=params,
-            )
+        response = await self.client.get(
+            url,
+            params=params,
+        )
 
         response.raise_for_status()
 
         return response.json()
 
     async def get_mass_info(
-            self,
-            item_hashes: list[str],
-            sell: int = 0,
-            buy: int = 0,
-            history: int = 0,
-            info: int = 3,
+        self,
+        item_hashes: list[str],
+        sell: int = 0,
+        buy: int = 0,
+        history: int = 0,
+        info: int = 3,
     ) -> dict[str, Any]:
         if not item_hashes:
             return {
@@ -109,23 +118,25 @@ class MarketAPI:
 
         for attempt in range(3):
             try:
-                async with httpx.AsyncClient(
-                        timeout=60.0
-                ) as client:
-                    response = await client.post(
-                        url,
-                        params=params,
-                        data=data,
-                    )
+                response = await self.client.post(
+                    url,
+                    params=params,
+                    data=data,
+                )
 
                 response.raise_for_status()
 
                 return response.json()
 
             except httpx.HTTPStatusError as error:
-                status_code = error.response.status_code
+                status_code = (
+                    error.response.status_code
+                )
 
-                if status_code != 502 or attempt == 2:
+                if (
+                    status_code != 502
+                    or attempt == 2
+                ):
                     raise
 
                 await asyncio.sleep(2)
