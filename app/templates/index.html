@@ -23,7 +23,8 @@
     <h1>Dota 2 Market Parser</h1>
 
     <p class="subtitle">
-        Поиск предметов по названию, качеству и описанию
+        Поиск предметов по названию, качеству,
+        описанию и призматическим гемам
     </p>
 
 
@@ -44,7 +45,9 @@
         >
 
 
-        <!-- Выбор качества -->
+        <!-- =========================
+             КАЧЕСТВО
+             ========================= -->
 
         <label>
             Качество
@@ -139,9 +142,40 @@
         </div>
 
 
-        <!-- Описание -->
+        <!-- =========================
+             РЕЖИМ ВСЕХ ГЕМОВ
+             ========================= -->
 
-        <label for="description">
+        <label class="gem-mode-option">
+
+            <input
+                id="all-gems"
+                type="checkbox"
+            >
+
+            <span class="gem-mode-checkbox"></span>
+
+            <span class="gem-mode-text">
+                Все призматические гемы
+            </span>
+
+        </label>
+
+        <div class="gem-mode-description">
+            Показывает, сколько предметов с каждым
+            призматическим гемом есть на маркете.
+            Нажмите на гем, чтобы посмотреть предметы.
+        </div>
+
+
+        <!-- =========================
+             ОПИСАНИЕ
+             ========================= -->
+
+        <label
+            id="description-label"
+            for="description"
+        >
             Описание
         </label>
 
@@ -160,70 +194,6 @@
         >
             Найти
         </button>
-
-    </div>
-
-
-    <!-- =========================
-         ПРОГРЕСС ПОИСКА
-         ========================= -->
-
-    <div
-        id="progress-container"
-        class="search-progress"
-        style="display: none;"
-    >
-
-        <div class="progress-header">
-
-            <div
-                id="progress-stage"
-                class="progress-stage"
-            >
-                Подготовка поиска
-            </div>
-
-            <div
-                id="progress-percent"
-                class="progress-percent"
-            >
-                0%
-            </div>
-
-        </div>
-
-
-        <!-- Полоса прогресса -->
-
-        <div class="progress-bar">
-
-            <div
-                id="progress-fill"
-                class="progress-fill"
-                style="width: 0%;"
-            ></div>
-
-        </div>
-
-
-        <!-- Текущее действие -->
-
-        <div
-            id="progress-message"
-            class="progress-message"
-        >
-            Подготавливаем поиск...
-        </div>
-
-
-        <!-- Подробная информация -->
-
-        <div
-            id="progress-details"
-            class="progress-details"
-        >
-            Ожидание начала поиска...
-        </div>
 
     </div>
 

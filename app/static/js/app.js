@@ -29,6 +29,14 @@ const allQualityInput =
         'input[name="quality"][value="all"]'
     );
 
+const allGemsInput =
+    document.getElementById("all-gems");
+
+const descriptionLabel =
+    document.getElementById(
+        "description-label"
+    );
+
 
 /* =========================================================
    MESSAGES
@@ -293,69 +301,104 @@ document.addEventListener(
 
 
 /* =========================================================
-   PROGRESS
+   GEM MODE
    ========================================================= */
 
-function showProgressBlock() {
-    const progressContainer =
-        document.getElementById(
-            "progress-container"
-        );
-
-    if (!progressContainer) {
+function updateGemModeUI() {
+    if (!allGemsInput) {
         return;
     }
 
-    progressContainer.style.display =
-        "block";
+    const gemMode =
+        allGemsInput.checked;
 
-    const percent =
-        document.getElementById(
-            "progress-percent"
-        );
+    if (descriptionInput) {
+        descriptionInput.disabled =
+            gemMode;
 
-    const fill =
-        document.getElementById(
-            "progress-fill"
-        );
-
-    const stage =
-        document.getElementById(
-            "progress-stage"
-        );
-
-    const message =
-        document.getElementById(
-            "progress-message"
-        );
-
-    const details =
-        document.getElementById(
-            "progress-details"
-        );
-
-    if (percent) {
-        percent.textContent = "0%";
+        if (gemMode) {
+            descriptionInput.value = "";
+            descriptionInput.placeholder =
+                "Описание не требуется";
+        } else {
+            descriptionInput.placeholder =
+                "Например: Tnim S'nnam";
+        }
     }
 
-    if (fill) {
-        fill.style.width = "0%";
+    if (descriptionLabel) {
+        if (gemMode) {
+            descriptionLabel.textContent =
+                "Описание";
+        } else {
+            descriptionLabel.textContent =
+                "Описание";
+        }
     }
+}
 
-    if (stage) {
-        stage.textContent =
-            "Подготовка поиска";
-    }
 
-    if (message) {
-        message.textContent =
-            "Подготавливаем поиск...";
-    }
+if (allGemsInput) {
+    allGemsInput.addEventListener(
+        "change",
+        updateGemModeUI
+    );
+}
 
-    if (details) {
-        details.textContent =
-            "Ожидание начала поиска...";
-    }
+
+/* =========================================================
+   PROGRESS
+   ========================================================= */
+
+function createProgressBlock() {
+    resultsContainer.innerHTML = "";
+
+    const block =
+        document.createElement("div");
+
+    block.className =
+        "search-progress";
+
+    block.innerHTML = `
+        <div class="progress-header">
+            <div
+                id="progress-stage"
+                class="progress-stage"
+            >
+                Подготовка
+            </div>
+
+            <div
+                id="progress-percent"
+                class="progress-percent"
+            >
+                0%
+            </div>
+        </div>
+
+        <div class="progress-bar">
+            <div
+                id="progress-fill"
+                class="progress-fill"
+            ></div>
+        </div>
+
+        <div
+            id="progress-message"
+            class="progress-message"
+        >
+            Подготавливаем поиск...
+        </div>
+
+        <div
+            id="progress-details"
+            class="progress-details"
+        ></div>
+    `;
+
+    resultsContainer.appendChild(
+        block
+    );
 }
 
 
@@ -385,12 +428,15 @@ function updateProgress(data) {
             "progress-details"
         );
 
-    if (!percentElement || !fillElement) {
+    if (
+        !percentElement
+        || !fillElement
+    ) {
         return;
     }
 
     const rawPercent =
-        Number(data?.percent);
+        Number(data.percent);
 
     const percent =
         Number.isFinite(rawPercent)
@@ -411,12 +457,12 @@ function updateProgress(data) {
 
     if (stageElement) {
         stageElement.textContent =
-            data?.stage || "Поиск";
+            data.stage || "Поиск";
     }
 
     if (messageElement) {
         messageElement.textContent =
-            data?.message || "";
+            data.message || "";
     }
 
     if (!detailsElement) {
@@ -426,8 +472,16 @@ function updateProgress(data) {
     const details = [];
 
     if (
-        data?.quality_number !== undefined
-        && data?.quality_total !== undefined
+        data.gem_mode
+    ) {
+        details.push(
+            "Режим: все призматические гемы"
+        );
+    }
+
+    if (
+        data.quality_number
+        && data.quality_total
     ) {
         details.push(
             `Качество: `
@@ -437,16 +491,18 @@ function updateProgress(data) {
     }
 
     if (
-        data?.found_for_quality !== undefined
+        data.found_for_quality !==
+        undefined
     ) {
         details.push(
-            `Для качества: `
+            `Найдено для качества: `
             + `${data.found_for_quality}`
         );
     }
 
     if (
-        data?.total_found !== undefined
+        data.total_found !==
+        undefined
     ) {
         details.push(
             `Всего найдено: `
@@ -455,8 +511,8 @@ function updateProgress(data) {
     }
 
     if (
-        data?.batch !== undefined
-        && data?.total_batches !== undefined
+        data.batch
+        && data.total_batches
     ) {
         details.push(
             `MassInfo: `
@@ -466,8 +522,10 @@ function updateProgress(data) {
     }
 
     if (
-        data?.processed !== undefined
-        && data?.total_items !== undefined
+        data.processed !==
+        undefined
+        && data.total_items !==
+        undefined
     ) {
         details.push(
             `Обработано: `
@@ -477,7 +535,8 @@ function updateProgress(data) {
     }
 
     if (
-        data?.descriptions !== undefined
+        data.descriptions !==
+        undefined
     ) {
         details.push(
             `Получено описаний: `
@@ -486,8 +545,10 @@ function updateProgress(data) {
     }
 
     if (
-        data?.checked !== undefined
-        && data?.total !== undefined
+        data.checked !==
+        undefined
+        && data.total !==
+        undefined
     ) {
         details.push(
             `Проверено: `
@@ -497,19 +558,209 @@ function updateProgress(data) {
     }
 
     if (
-        data?.matches !== undefined
+        data.matches !==
+        undefined
     ) {
         details.push(
-            `Совпадений: `
+            `Предметов с гемами: `
             + `${data.matches}`
         );
     }
 
+    if (
+        data.gem_types !==
+        undefined
+    ) {
+        details.push(
+            `Видов гемов: `
+            + `${data.gem_types}`
+        );
+    }
+
     detailsElement.textContent =
-        details.length > 0
-            ? details.join(" • ")
-            : "Обработка...";
+        details.join(" • ");
 }
+
+
+/* =========================================================
+   GEM RESULTS
+   ========================================================= */
+
+function createGemCard(
+    gemName,
+    count
+) {
+    const card =
+        document.createElement("button");
+
+    card.type = "button";
+
+    card.className =
+        "gem-card";
+
+    card.dataset.gem =
+        gemName;
+
+    const name =
+        document.createElement("span");
+
+    name.className =
+        "gem-card-name";
+
+    name.textContent =
+        gemName;
+
+    const countElement =
+        document.createElement("span");
+
+    countElement.className =
+        "gem-card-count";
+
+    countElement.textContent =
+        `${count} предметов`;
+
+    card.appendChild(name);
+    card.appendChild(countElement);
+
+    card.addEventListener(
+        "click",
+        () => {
+            selectGem(
+                gemName
+            );
+        }
+    );
+
+    return card;
+}
+
+
+function renderGemResults(
+    data,
+    elapsedSeconds
+) {
+    resultsContainer.innerHTML = "";
+
+    const wrapper =
+        document.createElement("div");
+
+    wrapper.className =
+        "gem-results";
+
+    const header =
+        document.createElement("div");
+
+    header.className =
+        "results-header";
+
+    const title =
+        document.createElement("strong");
+
+    title.textContent =
+        "Призматические самоцветы";
+
+    const count =
+        document.createElement("span");
+
+    count.textContent =
+        `Предметов с гемами: ${data.count}`;
+
+    const time =
+        document.createElement("span");
+
+    time.textContent =
+        `Время: ${elapsedSeconds.toFixed(1)} сек.`;
+
+    header.appendChild(title);
+    header.appendChild(count);
+    header.appendChild(time);
+
+    wrapper.appendChild(header);
+
+    const hint =
+        document.createElement("div");
+
+    hint.className =
+        "gem-results-hint";
+
+    hint.textContent =
+        "Нажмите на гем, чтобы показать "
+        + "все предметы с этим гемом.";
+
+    wrapper.appendChild(hint);
+
+    const grid =
+        document.createElement("div");
+
+    grid.className =
+        "gem-grid";
+
+    const gemCounts =
+        data.gem_counts || {};
+
+    const entries =
+        Object.entries(
+            gemCounts
+        );
+
+    if (!entries.length) {
+        const empty =
+            document.createElement("div");
+
+        empty.className =
+            "message";
+
+        empty.textContent =
+            "Призматических гемов "
+            + "в найденных предметах не обнаружено.";
+
+        wrapper.appendChild(empty);
+
+        resultsContainer.appendChild(
+            wrapper
+        );
+
+        return;
+    }
+
+    for (
+        const [gemName, gemCount]
+        of entries
+    ) {
+        grid.appendChild(
+            createGemCard(
+                gemName,
+                gemCount
+            )
+        );
+    }
+
+    wrapper.appendChild(grid);
+
+    resultsContainer.appendChild(
+        wrapper
+    );
+}
+
+
+function selectGem(gemName) {
+    if (!descriptionInput) {
+        return;
+    }
+
+    if (allGemsInput) {
+        allGemsInput.checked =
+            false;
+
+        updateGemModeUI();
+    }
+
+    descriptionInput.value =
+        gemName;
+
+    searchItems();
+}
+
 
 /* =========================================================
    RESULT CARD
@@ -713,6 +964,11 @@ async function searchItems() {
     const itemName =
         itemNameInput.value.trim();
 
+    const gemMode =
+        allGemsInput
+            ? allGemsInput.checked
+            : false;
+
     const description =
         descriptionInput.value.trim();
 
@@ -724,7 +980,10 @@ async function searchItems() {
         return;
     }
 
-    if (!description) {
+    if (
+        !gemMode
+        && !description
+    ) {
         showMessage(
             "Введите описание."
         );
@@ -741,7 +1000,7 @@ async function searchItems() {
     searchButton.textContent =
         "Поиск...";
 
-    showProgressBlock();
+    createProgressBlock();
 
     const startTime =
         performance.now();
@@ -763,6 +1022,13 @@ async function searchItems() {
         params.append(
             "qualities",
             qualities.join(",")
+        );
+
+        params.append(
+            "gem_mode",
+            gemMode
+                ? "true"
+                : "false"
         );
 
         const response =
@@ -899,9 +1165,19 @@ async function searchItems() {
             percent: 100,
             stage: "Готово",
             message:
-                "Поиск завершён",
+                gemMode
+                    ? "Анализ гемов завершён"
+                    : "Поиск завершён",
             matches:
                 resultData.count,
+            gem_mode:
+                resultData.gem_mode,
+            gem_types:
+                resultData.gem_counts
+                    ? Object.keys(
+                        resultData.gem_counts
+                    ).length
+                    : undefined,
         });
 
         const elapsedSeconds =
@@ -918,10 +1194,19 @@ async function searchItems() {
                 )
         );
 
-        renderResults(
-            resultData,
-            elapsedSeconds
-        );
+        if (
+            resultData.gem_mode
+        ) {
+            renderGemResults(
+                resultData,
+                elapsedSeconds
+            );
+        } else {
+            renderResults(
+                resultData,
+                elapsedSeconds
+            );
+        }
     } catch (error) {
         showMessage(
             `Ошибка: ${error.message}`
@@ -966,3 +1251,4 @@ searchButton.addEventListener(
 
 
 setupQualityDropdown();
+updateGemModeUI();

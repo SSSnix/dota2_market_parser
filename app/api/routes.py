@@ -1,4 +1,3 @@
-import asyncio
 import json
 from typing import Any, AsyncGenerator
 
@@ -31,16 +30,13 @@ def make_event(
     data: dict[str, Any],
 ) -> str:
     """Create one NDJSON event."""
-    payload = {
-        "event": event,
-        "data": data,
-    }
-
     return (
         json.dumps(
-            payload,
+            {
+                "event": event,
+                "data": data,
+            },
             ensure_ascii=False,
-            separators=(",", ":"),
         )
         + "\n"
     )
@@ -60,8 +56,9 @@ async def index(request: Request):
 @router.post("/api/search")
 async def search(
     item_name: str = Form(...),
-    description: str = Form(...),
+    description: str = Form(""),
     qualities: str = Form("all"),
+    gem_mode: bool = Form(False),
 ):
     item_name = item_name.strip()
     description = description.strip()
@@ -72,7 +69,9 @@ async def search(
             detail="Введите название предмета",
         )
 
-    if not description:
+    # В обычном режиме описание обязательно.
+    # В режиме "Все гемы" оно не требуется.
+    if not gem_mode and not description:
         raise HTTPException(
             status_code=400,
             detail="Введите описание для поиска",
@@ -87,12 +86,8 @@ async def search(
     if not selected_qualities:
         selected_qualities = ["all"]
 
-    async def generate() -> AsyncGenerator[
-        str,
-        None,
-    ]:
+    async def generate() -> AsyncGenerator[str, None]:
         try:
-            # Первое событие отправляем сразу.
             yield make_event(
                 "progress",
                 {
@@ -101,47 +96,29 @@ async def search(
                     "message": (
                         "Подготавливаем поиск..."
                     ),
+                    "gem_mode": gem_mode,
                 },
             )
 
-            await asyncio.sleep(0)
-
-            async for update in (
-                search_service.search(
-                    item_name=item_name,
-                    description_query=description,
-                    qualities=selected_qualities,
-                )
+            async for update in search_service.search(
+                item_name=item_name,
+                description_query=description,
+                qualities=selected_qualities,
+                gem_mode=gem_mode,
             ):
                 update_type = update.get("type")
 
                 if update_type == "progress":
                     yield make_event(
                         "progress",
-                        update.get(
-                            "data",
-                            {},
-                        ),
+                        update["data"],
                     )
-
-                    # Очень важно:
-                    # отдаём управление event loop
-                    # сразу после progress-события.
-                    await asyncio.sleep(0)
 
                 elif update_type == "result":
                     yield make_event(
                         "result",
-                        update.get(
-                            "data",
-                            {},
-                        ),
+                        update["data"],
                     )
-
-                    await asyncio.sleep(0)
-
-        except asyncio.CancelledError:
-            raise
 
         except Exception as error:
             yield make_event(
@@ -151,21 +128,12 @@ async def search(
                 },
             )
 
-            await asyncio.sleep(0)
-
     return StreamingResponse(
         generate(),
-        media_type=(
-            "application/x-ndjson; "
-            "charset=utf-8"
-        ),
+        media_type="application/x-ndjson",
         headers={
-            "Cache-Control": (
-                "no-cache, no-store, "
-                "must-revalidate"
-            ),
-            "Pragma": "no-cache",
-            "Expires": "0",
+            "Cache-Control": "no-cache, no-store",
             "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
         },
     )
