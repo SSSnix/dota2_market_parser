@@ -33,14 +33,8 @@ const allQualityInput =
     );
 
 
-/* =========================================================
-   СТАН ПОСЛЕДНЕГО ПОИСКА
-   ========================================================= */
-
 let currentSearchData = null;
-
 let currentGemFilter = null;
-
 let currentSearchStartedAt = 0;
 
 
@@ -596,6 +590,10 @@ function createResultCard(item) {
         `Class: ${item.class_id}`
         + ` | Instance: ${item.instance_id}`;
 
+    card.appendChild(title);
+    card.appendChild(price);
+    card.appendChild(offers);
+
     if (
         item.gems
         && item.gems.length
@@ -611,6 +609,9 @@ function createResultCard(item) {
 
         card.appendChild(gems);
     }
+
+    card.appendChild(description);
+    card.appendChild(identifiers);
 
     const link =
         document.createElement("a");
@@ -630,11 +631,6 @@ function createResultCard(item) {
     link.textContent =
         "Открыть на Market";
 
-    card.appendChild(title);
-    card.appendChild(price);
-    card.appendChild(offers);
-    card.appendChild(description);
-    card.appendChild(identifiers);
     card.appendChild(link);
 
     return card;
@@ -687,6 +683,17 @@ function createGemTabs(data) {
 
     tabs.appendChild(allButton);
 
+    /*
+     * ВАЖНО:
+     *
+     * data.gems содержит не только гемы из
+     * PRISMATIC_GEMS, но и автоматически найденные
+     * неизвестные гемы.
+     *
+     * Поэтому здесь ничего дополнительно
+     * фильтровать нельзя.
+     */
+
     const gems =
         data.gems || [];
 
@@ -705,11 +712,20 @@ function createGemTabs(data) {
         button.dataset.gem =
             gem.name;
 
-        button.innerHTML =
-            `<span>${escapeHtml(
-                gem.name
-            )}</span>`
-            + `<strong>${gem.count}</strong>`;
+        const name =
+            document.createElement("span");
+
+        name.textContent =
+            gem.name;
+
+        const count =
+            document.createElement("strong");
+
+        count.textContent =
+            gem.count;
+
+        button.appendChild(name);
+        button.appendChild(count);
 
         tabs.appendChild(button);
     }
@@ -729,7 +745,7 @@ function createGemTabs(data) {
             const gem =
                 button.dataset.gem;
 
-            document
+            tabs
                 .querySelectorAll(
                     ".gem-tab"
                 )
@@ -786,13 +802,13 @@ function renderLocalItems(
     items,
     selectedGem = null
 ) {
-    const oldHeader =
+    const oldSection =
         document.querySelector(
             ".local-results"
         );
 
-    if (oldHeader) {
-        oldHeader.remove();
+    if (oldSection) {
+        oldSection.remove();
     }
 
     const section =
@@ -864,16 +880,27 @@ function renderGemResults(
     header.className =
         "results-header";
 
-    header.innerHTML =
-        `<strong>Поиск завершён</strong>`
-        + `<span>`
-        + `Всего предметов: `
-        + `${data.count}`
-        + `</span>`
-        + `<span>`
-        + `Время: `
-        + `${elapsedSeconds.toFixed(1)} сек.`
-        + `</span>`;
+    const title =
+        document.createElement("strong");
+
+    title.textContent =
+        "Поиск завершён";
+
+    const total =
+        document.createElement("span");
+
+    total.textContent =
+        `Всего предметов: ${data.count}`;
+
+    const time =
+        document.createElement("span");
+
+    time.textContent =
+        `Время: ${elapsedSeconds.toFixed(1)} сек.`;
+
+    header.appendChild(title);
+    header.appendChild(total);
+    header.appendChild(time);
 
     resultsContainer.appendChild(
         header
@@ -921,16 +948,27 @@ function renderNormalResults(
     header.className =
         "results-header";
 
-    header.innerHTML =
-        `<strong>Поиск завершён</strong>`
-        + `<span>`
-        + `Найдено вариантов: `
-        + `${data.count}`
-        + `</span>`
-        + `<span>`
-        + `Время: `
-        + `${elapsedSeconds.toFixed(1)} сек.`
-        + `</span>`;
+    const title =
+        document.createElement("strong");
+
+    title.textContent =
+        "Поиск завершён";
+
+    const count =
+        document.createElement("span");
+
+    count.textContent =
+        `Найдено вариантов: ${data.count}`;
+
+    const time =
+        document.createElement("span");
+
+    time.textContent =
+        `Время: ${elapsedSeconds.toFixed(1)} сек.`;
+
+    header.appendChild(title);
+    header.appendChild(count);
+    header.appendChild(time);
 
     resultsContainer.appendChild(
         header
@@ -943,20 +981,6 @@ function renderNormalResults(
             createResultCard(item)
         );
     }
-}
-
-
-/* =========================================================
-   HTML ESCAPE
-   ========================================================= */
-
-function escapeHtml(value) {
-    return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
 }
 
 
@@ -1087,13 +1111,11 @@ async function searchItems() {
                 "/api/search",
                 {
                     method: "POST",
-
                     headers: {
                         "Content-Type":
                             "application/"
                             + "x-www-form-urlencoded",
                     },
-
                     body:
                         params.toString(),
                 }

@@ -1,12 +1,16 @@
+import logging
+import re
 from typing import Any, AsyncGenerator
 from urllib.parse import quote
-import re
 
 from app.services.description_parser import (
     description_contains,
     extract_description_text,
 )
 from app.services.market_api import MarketAPI
+
+
+logger = logging.getLogger(__name__)
 
 
 QUALITY_NAMES = {
@@ -77,6 +81,10 @@ PRISMATIC_GEMS = [
     "Explosive Burst",
 ]
 
+
+# =========================================================
+# РУССКИЕ АЛИАСЫ
+# =========================================================
 
 PRISMATIC_GEM_ALIASES = {
     "Red": [
@@ -247,6 +255,71 @@ class SearchService:
     def __init__(self) -> None:
         self.market_api = MarketAPI()
 
+        self._gem_aliases = (
+            self._build_gem_aliases()
+        )
+
+    @staticmethod
+    def _normalize_gem_text(
+        value: str,
+    ) -> str:
+        """Normalize gem name for comparison."""
+        value = value.strip()
+
+        value = value.replace(
+            "’",
+            "'",
+        )
+
+        value = re.sub(
+            r"\s+",
+            " ",
+            value,
+        )
+
+        return value.casefold()
+
+    @classmethod
+    def _build_gem_aliases(
+        cls,
+    ) -> list[tuple[str, str]]:
+        """
+        Build aliases sorted from longest to shortest.
+
+        This is important for names such as:
+
+        Blue
+        Champion's Blue
+
+        Champion's Blue must be checked first.
+        """
+        aliases: list[
+            tuple[str, str]
+        ] = []
+
+        for canonical_name in PRISMATIC_GEMS:
+            values = PRISMATIC_GEM_ALIASES.get(
+                canonical_name,
+                [canonical_name],
+            )
+
+            for alias in values:
+                aliases.append(
+                    (
+                        cls._normalize_gem_text(
+                            alias
+                        ),
+                        canonical_name,
+                    )
+                )
+
+        aliases.sort(
+            key=lambda item: len(item[0]),
+            reverse=True,
+        )
+
+        return aliases
+
     @staticmethod
     def chunks(
         items: list[str],
@@ -282,65 +355,231 @@ class SearchService:
 
         return result or list(QUALITY_NAMES)
 
+    def _find_known_gem(
+        self,
+        candidate: str,
+    ) -> str | None:
+        """
+        Find canonical gem name.
+
+        Longest aliases are checked first so that
+        Champion's Blue cannot become Blue.
+        """
+        normalized = self._normalize_gem_text(
+            candidate
+        )
+
+        for alias, canonical_name in (
+            self._gem_aliases
+        ):
+            if normalized == alias:
+                return canonical_name
+
+        return None
+
     @staticmethod
+    def _clean_unknown_gem(
+        candidate: str,
+    ) -> str:
+        """Clean a newly discovered gem name."""
+        candidate = candidate.strip()
+
+        candidate = candidate.strip(
+            " \t\r\n:|,-–—"
+        )
+
+        candidate = re.sub(
+            r"\s+",
+            " ",
+            candidate,
+        )
+
+        return candidate
+
+    def _extract_unknown_from_marker(
+        self,
+        text: str,
+        marker_match: re.Match[str],
+    ) -> str | None:
+        """
+        Extract a gem name immediately before
+        'Призматический самоцвет' / 'Prismatic Gem'.
+
+        The marker is used as the boundary, rather than
+        searching individual words. This prevents Blue from
+        being extracted from Champion's Blue.
+        """
+        before = text[
+            :marker_match.start()
+        ]
+
+        # Берём только последнюю строку/фрагмент.
+        parts = re.split(
+            r"[\r\n]+",
+            before,
+        )
+
+        candidate = parts[-1].strip()
+
+        # Если перед гемом есть разделитель,
+        # берём всё после последнего разделителя.
+        candidate = re.split(
+            r"[|:•]",
+            candidate,
+        )[-1].strip()
+
+        # Убираем распространённые технические
+        # символы оформления.
+        candidate = candidate.strip(
+            " \t-–—"
+        )
+
+        if not candidate:
+            return None
+
+        # Иногда перед названием могут оказаться
+        # HTML-подобные остатки.
+        candidate = re.sub(
+            r"<[^>]+>",
+            "",
+            candidate,
+        ).strip()
+
+        # Для неизвестного гема допустимо несколько слов.
+        # Не ограничиваемся одним словом.
+        return self._clean_unknown_gem(
+            candidate
+        )
+
     def extract_gems(
-            description: Any,
+        self,
+        description: Any,
     ) -> list[str]:
         """
-        Extract exactly one prismatic gem from description.
-        """
+        Extract exactly one prismatic gem from
+        an item description.
 
+        Known gems are converted to canonical English names.
+
+        If a gem is not present in our classification,
+        its actual name is returned as-is and logged.
+        """
         if not description:
             return []
 
-        text = extract_description_text(description)
+        text = extract_description_text(
+            description
+        )
 
         if not text:
             return []
 
-        gem_names = sorted(
-            PRISMATIC_GEMS,
-            key=len,
-            reverse=True,
+        # -------------------------------------------------
+        # Ищем именно маркер призматического самоцвета.
+        # -------------------------------------------------
+
+        marker_pattern = re.compile(
+            r"(?:"
+            r"Призматический\s+самоцвет"
+            r"|"
+            r"Prismatic\s+Gemstone"
+            r"|"
+            r"Prismatic\s+Gem"
+            r")",
+            re.IGNORECASE,
         )
 
-        for gem_name in gem_names:
-            aliases = PRISMATIC_GEM_ALIASES.get(
-                gem_name,
-                [gem_name],
+        marker_match = marker_pattern.search(
+            text
+        )
+
+        if not marker_match:
+            return []
+
+        # -------------------------------------------------
+        # Сначала проверяем известные гемы.
+        #
+        # Ищем их именно непосредственно перед
+        # маркером, причём самые длинные названия
+        # проверяются первыми.
+        # -------------------------------------------------
+
+        before = text[
+            :marker_match.start()
+        ]
+
+        before_normalized = (
+            self._normalize_gem_text(
+                before
+            )
+        )
+
+        for alias, canonical_name in (
+            self._gem_aliases
+        ):
+            pattern = (
+                r"(?:^|[\s|:•,\-–—])"
+                + re.escape(alias)
+                + r"(?:[\s|:•,\-–—])*$"
             )
 
-            for alias in aliases:
-                pattern = (
-                        r"(?<!\w)"
-                        + re.escape(alias)
-                        + r"(?!\w)"
-                )
+            if re.search(
+                pattern,
+                before_normalized,
+            ):
+                return [canonical_name]
 
-                if re.search(
-                        pattern,
-                        text,
-                        flags=re.IGNORECASE,
-                ):
-                    return [gem_name]
+        # -------------------------------------------------
+        # Если известного гема нет —
+        # извлекаем неизвестный.
+        # -------------------------------------------------
 
-        return []
+        unknown_gem = (
+            self._extract_unknown_from_marker(
+                text,
+                marker_match,
+            )
+        )
+
+        if not unknown_gem:
+            return []
+
+        # Не добавляем мусор.
+        if (
+            len(unknown_gem) > 100
+            or len(unknown_gem) < 1
+        ):
+            return []
+
+        # Если по какой-то причине после
+        # извлечения название всё-таки совпало
+        # с известным гемом.
+        known_gem = self._find_known_gem(
+            unknown_gem
+        )
+
+        if known_gem:
+            return [known_gem]
+
+        logger.warning(
+            "Найден предмет с неизвестным "
+            "призматическим гемом: %s",
+            unknown_gem,
+        )
+
+        return [unknown_gem]
 
     @staticmethod
     def build_gem_statistics(
-            items: list[dict[str, Any]],
+        items: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         """
-        Build statistics only for prismatic gems.
+        Build gem counters from already loaded items.
 
-        Every item contributes to at most one gem because
-        extract_gems() returns at most one prismatic gem.
+        One item contains only one prismatic gem,
+        therefore each item is counted only once.
         """
-
-        counters = {
-            gem: 0
-            for gem in PRISMATIC_GEMS
-        }
+        counters: dict[str, int] = {}
 
         for item in items:
             gems = item.get("gems", [])
@@ -348,19 +587,28 @@ class SearchService:
             if not gems:
                 continue
 
-            # One item = one prismatic gem.
             gem = gems[0]
 
-            if gem in counters:
-                counters[gem] += 1
+            counters[gem] = (
+                counters.get(gem, 0) + 1
+            )
 
-        return [
+        result = [
             {
-                "name": gem,
-                "count": counters[gem],
+                "name": name,
+                "count": count,
             }
-            for gem in PRISMATIC_GEMS
+            for name, count in counters.items()
         ]
+
+        result.sort(
+            key=lambda item: (
+                -item["count"],
+                item["name"].casefold(),
+            )
+        )
+
+        return result
 
     async def search(
         self,
@@ -631,8 +879,6 @@ class SearchService:
                 )
             )
 
-            # В обычном режиме проверяем описание.
-            # В gem_mode сохраняем все предметы.
             if gem_mode:
                 is_match = True
             else:
@@ -691,10 +937,8 @@ class SearchService:
                     f"{quote(market_name, safe='')}/"
                 )
 
-                gems = (
-                    SearchService.extract_gems(
-                        description
-                    )
+                gems = self.extract_gems(
+                    description
                 )
 
                 matched_items.append(
