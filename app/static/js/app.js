@@ -60,6 +60,58 @@ function showMessage(message) {
 }
 
 
+function showSearchError(data) {
+    resultsContainer.innerHTML = "";
+
+    const messageElement =
+        document.createElement("div");
+
+    messageElement.className =
+        "message search-error";
+
+    const title =
+        document.createElement("strong");
+
+    title.textContent =
+        "Не удалось выполнить поиск";
+
+    const message =
+        document.createElement("div");
+
+    message.textContent =
+        data?.message
+        || "Произошла ошибка при поиске.";
+
+    messageElement.appendChild(
+        title
+    );
+
+    messageElement.appendChild(
+        message
+    );
+
+    if (data?.retryable) {
+        const hint =
+            document.createElement("div");
+
+        hint.className =
+            "search-error-hint";
+
+        hint.textContent =
+            "Попробуйте повторить поиск "
+            + "через несколько секунд.";
+
+        messageElement.appendChild(
+            hint
+        );
+    }
+
+    resultsContainer.appendChild(
+        messageElement
+    );
+}
+
+
 /* =========================================================
    QUALITY DROPDOWN
    ========================================================= */
@@ -1128,21 +1180,38 @@ async function searchItems() {
                 errorData =
                     await response.json();
             } catch {
-                throw new Error(
-                    `HTTP ${response.status}`
-                );
+                errorData = {
+                    message:
+                        `Сервер вернул `
+                        + `ошибку HTTP `
+                        + `${response.status}.`,
+                    retryable:
+                        response.status >= 500,
+                };
             }
 
-            throw new Error(
-                formatError(errorData)
-            );
+            showSearchError({
+                message:
+                    formatError(
+                        errorData
+                    ),
+                retryable:
+                    errorData.retryable
+                    ?? response.status >= 500,
+            });
+
+            return;
         }
 
         if (!response.body) {
-            throw new Error(
-                "Браузер не поддерживает "
-                + "потоковый ответ."
-            );
+            showSearchError({
+                message:
+                    "Браузер не поддерживает "
+                    + "потоковый ответ.",
+                retryable: false,
+            });
+
+            return;
         }
 
         const reader =
@@ -1153,6 +1222,7 @@ async function searchItems() {
 
         let buffer = "";
         let resultData = null;
+        let searchError = null;
 
         while (true) {
             const {
@@ -1214,18 +1284,33 @@ async function searchItems() {
                     event.event ===
                     "error"
                 ) {
-                    throw new Error(
-                        event.data.message
-                    );
+                    searchError =
+                        event.data;
                 }
+            }
+
+            if (searchError) {
+                break;
             }
         }
 
-        if (!resultData) {
-            throw new Error(
-                "Сервер не вернул "
-                + "результат поиска."
+        if (searchError) {
+            showSearchError(
+                searchError
             );
+
+            return;
+        }
+
+        if (!resultData) {
+            showSearchError({
+                message:
+                    "Сервер не вернул "
+                    + "результат поиска.",
+                retryable: true,
+            });
+
+            return;
         }
 
         currentSearchData =
@@ -1259,9 +1344,13 @@ async function searchItems() {
             );
         }
     } catch (error) {
-        showMessage(
-            `Ошибка: ${error.message}`
-        );
+        showSearchError({
+            message:
+                error?.message
+                || "Произошла ошибка "
+                + "при выполнении поиска.",
+            retryable: true,
+        });
     } finally {
         searchButton.disabled =
             false;

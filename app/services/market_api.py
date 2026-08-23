@@ -84,12 +84,12 @@ class MarketAPI:
         return response.json()
 
     async def get_mass_info(
-        self,
-        item_hashes: list[str],
-        sell: int = 0,
-        buy: int = 0,
-        history: int = 0,
-        info: int = 3,
+            self,
+            item_hashes: list[str],
+            sell: int = 0,
+            buy: int = 0,
+            history: int = 0,
+            info: int = 3,
     ) -> dict[str, Any]:
         if not item_hashes:
             return {
@@ -133,14 +133,47 @@ class MarketAPI:
                     error.response.status_code
                 )
 
-                if (
-                    status_code != 502
-                    or attempt == 2
-                ):
-                    raise
+                if status_code == 502:
+                    if attempt < 2:
+                        await asyncio.sleep(2)
+                        continue
 
-                await asyncio.sleep(2)
+                    raise MarketAPIError(
+                        "Market временно не отвечает. "
+                        "Попробуйте повторить поиск "
+                        "через несколько секунд.",
+                        retryable=True,
+                    ) from error
 
-        raise RuntimeError(
-            "Не удалось получить данные MassInfo"
+                raise MarketAPIError(
+                    "Ошибка при обращении к Market.",
+                    retryable=False,
+                ) from error
+
+            except httpx.RequestError as error:
+                if attempt < 2:
+                    await asyncio.sleep(2)
+                    continue
+
+                raise MarketAPIError(
+                    "Не удалось связаться с Market. "
+                    "Попробуйте повторить поиск "
+                    "через несколько секунд.",
+                    retryable=True,
+                ) from error
+
+        raise MarketAPIError(
+            "Не удалось получить данные Market.",
+            retryable=True,
         )
+
+class MarketAPIError(Exception):
+    """Ошибка взаимодействия с Market API."""
+
+    def __init__(
+        self,
+        message: str,
+        retryable: bool = False,
+    ) -> None:
+        super().__init__(message)
+        self.retryable = retryable

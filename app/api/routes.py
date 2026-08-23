@@ -14,6 +14,7 @@ from fastapi.responses import (
 from fastapi.templating import Jinja2Templates
 
 from app.services.search_service import SearchService
+from app.services.market_api import MarketAPIError
 
 
 router = APIRouter()
@@ -119,11 +120,25 @@ async def search(
                         update["data"],
                     )
 
-        except Exception as error:
+
+        except MarketAPIError as error:
             yield make_event(
                 "error",
                 {
                     "message": str(error),
+                    "retryable": error.retryable,
+                },
+            )
+
+        except Exception:
+            yield make_event(
+                "error",
+                {
+                    "message": (
+                        "Произошла ошибка при поиске. "
+                        "Попробуйте ещё раз."
+                    ),
+                    "retryable": True,
                 },
             )
 
