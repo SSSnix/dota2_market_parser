@@ -245,6 +245,9 @@ PRISMATIC_GEM_ALIASES = {
     "Explosive Burst": [
         "Explosive Burst",
     ],
+    "Legacy": [
+        "Legacy",
+    ],
 }
 
 
@@ -396,24 +399,140 @@ class SearchService:
 
         return candidate
 
+    def _find_known_gem(
+        self,
+        candidate: str,
+    ) -> str | None:
+        """
+        Find canonical gem name.
+
+        Longest aliases are checked first so that
+        Champion's Blue cannot become Blue.
+        """
+        normalized = self._normalize_gem_text(
+            candidate
+        )
+
+        for alias, canonical_name in (
+            self._gem_aliases
+        ):
+            if normalized == alias:
+                return canonical_name
+
+        return None
+
+    @staticmethod
+    def _clean_unknown_gem(
+        candidate: str,
+    ) -> str:
+        """Clean a newly discovered gem name."""
+        candidate = candidate.strip()
+
+        candidate = candidate.strip(
+            " \t\r\n:|,-–—"
+        )
+
+        candidate = re.sub(
+            r"\s+",
+            " ",
+            candidate,
+        )
+
+        return candidate
+
     def _extract_unknown_from_marker(
         self,
         text: str,
         marker_match: re.Match[str],
     ) -> str | None:
         """
-        Extract a gem name immediately before
-        'Призматический самоцвет' / 'Prismatic Gem'.
+        Extract the gem name from a Legacy description.
 
-        The marker is used as the boundary, rather than
-        searching individual words. This prevents Blue from
-        being extracted from Champion's Blue.
+        The gem is ALWAYS the text between:
+
+            (Нельзя удалить)
+        and
+            Призматический самоцвет
+
+        or their English equivalents:
+
+            ( Not Deletable )
+        and
+            Prismatic Gem
+
+        Everything after the prismatic gem marker
+        is ignored completely.
+
+        Example:
+
+            (Нельзя удалить)Reflection's Shade
+            Призматический самоцветПустое гнездоОбщий
+
+        returns:
+
+            Reflection's Shade
+
+        Another example:
+
+            (Нельзя удалить)Пустое гнездо
+            Призматический самоцветПустое гнездоОбщий
+
+        returns:
+
+            Пустое гнездо
         """
+
         before = text[
             :marker_match.start()
         ]
 
-        # Берём только последнюю строку/фрагмент.
+        # -------------------------------------------------
+        # Ищем начало Legacy-блока.
+        #
+        # Варианты:
+        #
+        # (Нельзя удалить)
+        # ( Нельзя удалить )
+        # (Not Deletable)
+        # ( Not Deletable )
+        # -------------------------------------------------
+
+        legacy_pattern = re.compile(
+            r"\(\s*"
+            r"(?:"
+            r"Нельзя\s+удалить"
+            r"|"
+            r"Not\s+Deletable"
+            r")"
+            r"\s*\)",
+            re.IGNORECASE,
+        )
+
+        legacy_matches = list(
+            legacy_pattern.finditer(before)
+        )
+
+        if legacy_matches:
+            # Берём последний маркер.
+            #
+            # Это важно, если в description есть
+            # несколько технических блоков.
+            legacy_marker = legacy_matches[-1]
+
+            candidate = before[
+                legacy_marker.end():
+            ]
+
+            return self._clean_unknown_gem(
+                candidate
+            )
+
+        # -------------------------------------------------
+        # Если Legacy-маркера нет, используем
+        # обычный вариант: всё непосредственно
+        # перед "Призматический самоцвет".
+        # -------------------------------------------------
+
         parts = re.split(
             r"[\r\n]+",
             before,
@@ -421,15 +540,12 @@ class SearchService:
 
         candidate = parts[-1].strip()
 
-        # Если перед гемом есть разделитель,
-        # берём всё после последнего разделителя.
+        # Убираем возможные технические разделители.
         candidate = re.split(
             r"[|:•]",
             candidate,
         )[-1].strip()
 
-        # Убираем распространённые технические
-        # символы оформления.
         candidate = candidate.strip(
             " \t-–—"
         )
@@ -437,19 +553,262 @@ class SearchService:
         if not candidate:
             return None
 
-        # Иногда перед названием могут оказаться
-        # HTML-подобные остатки.
         candidate = re.sub(
             r"<[^>]+>",
             "",
             candidate,
         ).strip()
 
-        # Для неизвестного гема допустимо несколько слов.
-        # Не ограничиваемся одним словом.
         return self._clean_unknown_gem(
             candidate
         )
+
+    def extract_gems(
+        self,
+        description: Any,
+    ) -> list[str]:
+        """
+        Extract one prismatic gem from an item description.
+
+        For Legacy items the gem is defined strictly as
+        the text between:
+
+            (Нельзя удалить)
+        and
+            Призматический самоцвет
+
+        or:
+
+            ( Not Deletable )
+        and
+            Prismatic Gem.
+
+        Everything after the second marker is ignored.
+
+        This intentionally allows "Пустое гнездо" to be
+        returned as a gem because it is a real buggy item
+        that must remain visible in the filters.
+        """
+
+        if not description:
+            return []
+
+        text = extract_description_text(
+            description
+        )
+
+        if not text:
+            return []
+
+        # -------------------------------------------------
+        # Маркер конца гемового блока.
+        # -------------------------------------------------
+
+        marker_pattern = re.compile(
+            r"(?:"
+            r"Призматический\s+самоцвет"
+            r"|"
+            r"Prismatic\s+Gemstone"
+            r"|"
+            r"Prismatic\s+Gem"
+            r")",
+            re.IGNORECASE,
+        )
+
+        marker_match = marker_pattern.search(
+            text
+        )
+
+        if not marker_match:
+            return []
+
+        # -------------------------------------------------
+        # Получаем текст гема.
+        #
+        # Для Legacy:
+        #
+        # (Нельзя удалить)Reflection's Shade
+        #                           ↑
+        #                      берём это
+        #
+        # Для обычного:
+        #
+        # Reflection's ShadeПризматический самоцвет
+        # ↑
+        # берём это
+        # -------------------------------------------------
+
+        candidate = (
+            self._extract_unknown_from_marker(
+                text,
+                marker_match,
+            )
+        )
+
+        if not candidate:
+            return []
+
+        # -------------------------------------------------
+        # Защита от HTML/служебного мусора.
+        # -------------------------------------------------
+
+        candidate = re.sub(
+            r"<[^>]+>",
+            "",
+            candidate,
+        ).strip()
+
+        candidate = self._clean_unknown_gem(
+            candidate
+        )
+
+        if not candidate:
+            return []
+
+        if len(candidate) > 100:
+            return []
+
+        # -------------------------------------------------
+        # Сначала проверяем нашу классификацию.
+        #
+        # Например:
+        #
+        # Champion's Blue
+        # -> Champion's Blue
+        #
+        # Чемпионский синий
+        # -> Champion's Blue
+        #
+        # Blue
+        # -> Blue
+        #
+        # Благодаря сортировке aliases по длине
+        # Champion's Blue не превратится в Blue.
+        # -------------------------------------------------
+
+        known_gem = self._find_known_gem(
+            candidate
+        )
+
+        if known_gem:
+            return [known_gem]
+
+        # -------------------------------------------------
+        # Неизвестный гем.
+        #
+        # Возвращаем его как есть и одновременно
+        # пишем в лог.
+        # -------------------------------------------------
+
+        logger.warning(
+            "Найден предмет с неизвестным "
+            "призматическим гемом: %s",
+            candidate,
+        )
+
+        return [candidate]
+
+    def extract_gems(
+            self,
+            description: Any,
+    ) -> list[str]:
+        """
+        Extract one prismatic gem from an item description.
+
+        Known gems are converted to canonical English names.
+
+        Unknown gems are returned using their actual name
+        and logged.
+
+        Legacy descriptions are supported:
+
+            ( Not Deletable ) Reflection's ShadePrismatic Gem
+
+        Everything after the prismatic-gem marker is ignored.
+        """
+
+        if not description:
+            return []
+
+        text = extract_description_text(
+            description
+        )
+
+        if not text:
+            return []
+
+
+        marker_pattern = re.compile(
+            r"(?:"
+            r"Призматический\s+самоцвет"
+            r"|"
+            r"Prismatic\s+Gemstone"
+            r"|"
+            r"Prismatic\s+Gem"
+            r")",
+            re.IGNORECASE,
+        )
+
+        marker_match = marker_pattern.search(
+            text
+        )
+
+        if not marker_match:
+            return []
+
+        candidate = (
+            self._extract_unknown_from_marker(
+                text,
+                marker_match,
+            )
+        )
+
+        if not candidate:
+            return []
+
+
+        if re.match(
+                r"^Empty\s+Socket"
+                r"(?:\s+Prismatic)?$",
+                candidate,
+                re.IGNORECASE,
+        ):
+            return []
+
+        candidate = re.sub(
+            r"<[^>]+>",
+            "",
+            candidate,
+        ).strip()
+
+        candidate = self._clean_unknown_gem(
+            candidate
+        )
+
+        if not candidate:
+            return []
+
+        if len(candidate) > 100:
+            return []
+
+        known_gem = self._find_known_gem(
+            candidate
+        )
+
+        if known_gem:
+            return [known_gem]
+
+        # -------------------------------------------------
+        # Новый неизвестный гем.
+        # -------------------------------------------------
+
+        logger.warning(
+            "Найден предмет с неизвестным "
+            "призматическим гемом: %s",
+            candidate,
+        )
+
+        return [candidate]
 
     def extract_gems(
         self,
