@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
 
@@ -24,13 +25,13 @@
 
     <p class="subtitle">
         Поиск предметов по названию, качеству,
-        описанию и призматическим гемам
+        описанию и гемам
     </p>
 
 
-    <!-- =========================
-         ФОРМА ПОИСКА
-         ========================= -->
+    <!-- =====================================================
+         ФОРМА
+         ===================================================== -->
 
     <div class="search-form">
 
@@ -45,9 +46,9 @@
         >
 
 
-        <!-- =========================
+        <!-- =================================================
              КАЧЕСТВО
-             ========================= -->
+             ================================================= -->
 
         <label>
             Качество
@@ -60,6 +61,7 @@
                 id="quality-button"
                 class="quality-button"
             >
+
                 <span id="quality-button-text">
                     Все качества
                 </span>
@@ -67,7 +69,9 @@
                 <span class="quality-arrow">
                     ▼
                 </span>
+
             </button>
+
 
             <div
                 id="quality-dropdown"
@@ -75,107 +79,120 @@
             >
 
                 <label class="quality-option">
+
                     <input
                         type="checkbox"
                         name="quality"
                         value="all"
                         checked
                     >
-                    <span>Все</span>
+
+                    <span>
+                        Все
+                    </span>
+
                 </label>
 
+
                 <label class="quality-option">
+
                     <input
                         type="checkbox"
                         name="quality"
                         value="normal"
                     >
-                    <span>Обычный</span>
+
+                    <span>
+                        Обычный
+                    </span>
+
                 </label>
 
+
                 <label class="quality-option">
+
                     <input
                         type="checkbox"
                         name="quality"
                         value="exalted"
                     >
-                    <span>Exalted</span>
+
+                    <span>
+                        Exalted
+                    </span>
+
                 </label>
 
+
                 <label class="quality-option">
+
                     <input
                         type="checkbox"
                         name="quality"
                         value="inscribed"
                     >
-                    <span>Inscribed</span>
+
+                    <span>
+                        Inscribed
+                    </span>
+
                 </label>
 
+
                 <label class="quality-option">
+
                     <input
                         type="checkbox"
                         name="quality"
                         value="autographed"
                     >
-                    <span>Autographed</span>
+
+                    <span>
+                        Autographed
+                    </span>
+
                 </label>
 
+
                 <label class="quality-option">
+
                     <input
                         type="checkbox"
                         name="quality"
                         value="heroic"
                     >
-                    <span>Heroic</span>
+
+                    <span>
+                        Heroic
+                    </span>
+
                 </label>
 
+
                 <label class="quality-option">
+
                     <input
                         type="checkbox"
                         name="quality"
                         value="corrupted"
                     >
-                    <span>Corrupted</span>
+
+                    <span>
+                        Corrupted
+                    </span>
+
                 </label>
 
             </div>
+
         </div>
 
 
-        <!-- =========================
-             РЕЖИМ ВСЕХ ГЕМОВ
-             ========================= -->
-
-        <label class="gem-mode-option">
-
-            <input
-                id="all-gems"
-                type="checkbox"
-            >
-
-            <span class="gem-mode-checkbox"></span>
-
-            <span class="gem-mode-text">
-                Все призматические гемы
-            </span>
-
-        </label>
-
-        <div class="gem-mode-description">
-            Показывает, сколько предметов с каждым
-            призматическим гемом есть на маркете.
-            Нажмите на гем, чтобы посмотреть предметы.
-        </div>
-
-
-        <!-- =========================
+        <!-- =================================================
              ОПИСАНИЕ
-             ========================= -->
+             ================================================= -->
 
-        <label
-            id="description-label"
-            for="description"
-        >
+        <label for="description">
             Описание
         </label>
 
@@ -186,7 +203,34 @@
         >
 
 
-        <!-- Кнопка -->
+        <!-- =================================================
+             РЕЖИМ ГЕМОВ
+             ================================================= -->
+
+        <label class="gem-mode-option">
+
+            <input
+                id="gem-mode"
+                type="checkbox"
+            >
+
+            <span>
+                Все гемы
+            </span>
+
+        </label>
+
+        <div class="gem-mode-description">
+            При включении этого режима описание
+            вводить не нужно. Система один раз
+            загрузит предметы и покажет количество
+            предметов с каждым найденным гемом.
+        </div>
+
+
+        <!-- =================================================
+             ПОИСК
+             ================================================= -->
 
         <button
             id="search-button"
@@ -198,9 +242,9 @@
     </div>
 
 
-    <!-- =========================
+    <!-- =====================================================
          РЕЗУЛЬТАТЫ
-         ========================= -->
+         ===================================================== -->
 
     <div id="results">
 
@@ -218,4 +262,5 @@
 ></script>
 
 </body>
+
 </html>

@@ -1,5 +1,6 @@
 from typing import Any, AsyncGenerator
 from urllib.parse import quote
+import re
 
 from app.services.description_parser import (
     description_contains,
@@ -67,7 +68,6 @@ PRISMATIC_GEMS = [
     "Brusque Britches Beige",
     "Unhallowed Ground",
     "Ships in the Night",
-    "Miasmatic Grey",
     "Pristine Platinum",
     "Vermillion Renewal",
     "Reflection's Shade",
@@ -77,15 +77,6 @@ PRISMATIC_GEMS = [
     "Explosive Burst",
 ]
 
-
-# Названия выше соответствуют английским названиям
-# призматических самоцветов, которые могут встречаться
-# в описаниях предметов.
-#
-# Для первых цветов Wiki использует формат
-# "Призматический: Красный", "Призматический: Золотой" и т.д.
-# Поэтому для анализа описаний нам также нужны варианты
-# русских названий.
 
 PRISMATIC_GEM_ALIASES = {
     "Red": [
@@ -111,6 +102,7 @@ PRISMATIC_GEM_ALIASES = {
     "Lime": [
         "Lime",
         "Светло-зеленый",
+        "Светло-зелёный",
     ],
     "Deep Blue": [
         "Deep Blue",
@@ -119,18 +111,22 @@ PRISMATIC_GEM_ALIASES = {
     "Sea Green": [
         "Sea Green",
         "Сине-зеленый",
+        "Сине-зелёный",
     ],
     "Green": [
         "Green",
         "Зеленая сосна",
+        "Зелёная сосна",
     ],
     "Deep Green": [
         "Deep Green",
         "Глубокий зеленый",
+        "Глубокий зелёный",
     ],
     "Bright Green": [
         "Bright Green",
         "Ярко-зеленый",
+        "Ярко-зелёный",
     ],
     "Bright Purple": [
         "Bright Purple",
@@ -146,6 +142,7 @@ PRISMATIC_GEM_ALIASES = {
     ],
     "Muted Red": [
         "Muted Red",
+        "Сдержанно-красный",
         "Сдержанно-красный",
     ],
     "Maker's Light": [
@@ -166,6 +163,7 @@ PRISMATIC_GEM_ALIASES = {
     "Absorbing Black": [
         "Absorbing Black",
         "Отталкивающий черный",
+        "Отталкивающий чёрный",
     ],
     "Miasmatic Grey": [
         "Miasmatic Grey",
@@ -178,6 +176,7 @@ PRISMATIC_GEM_ALIASES = {
     "Champion's Green": [
         "Champion's Green",
         "Чемпионский зеленый",
+        "Чемпионский зелёный",
     ],
     "Champion's Purple": [
         "Champion's Purple",
@@ -190,6 +189,7 @@ PRISMATIC_GEM_ALIASES = {
     "Green Planet": [
         "Green Planet",
         "Зеленая планета",
+        "Зелёная планета",
     ],
     "Ember Flame": [
         "Ember Flame",
@@ -283,37 +283,84 @@ class SearchService:
         return result or list(QUALITY_NAMES)
 
     @staticmethod
-    def _find_gems_in_description(
-        description: Any,
+    def extract_gems(
+            description: Any,
     ) -> list[str]:
         """
-        Find all known prism gems in description.
-
-        One item can contain more than one gem.
+        Extract exactly one prismatic gem from description.
         """
+
         if not description:
             return []
 
-        text = extract_description_text(
-            description
-        )
+        text = extract_description_text(description)
 
         if not text:
             return []
 
-        text_lower = text.lower()
+        gem_names = sorted(
+            PRISMATIC_GEMS,
+            key=len,
+            reverse=True,
+        )
 
-        found = []
+        for gem_name in gem_names:
+            aliases = PRISMATIC_GEM_ALIASES.get(
+                gem_name,
+                [gem_name],
+            )
 
-        for gem_name, aliases in (
-            PRISMATIC_GEM_ALIASES.items()
-        ):
             for alias in aliases:
-                if alias.lower() in text_lower:
-                    found.append(gem_name)
-                    break
+                pattern = (
+                        r"(?<!\w)"
+                        + re.escape(alias)
+                        + r"(?!\w)"
+                )
 
-        return found
+                if re.search(
+                        pattern,
+                        text,
+                        flags=re.IGNORECASE,
+                ):
+                    return [gem_name]
+
+        return []
+
+    @staticmethod
+    def build_gem_statistics(
+            items: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """
+        Build statistics only for prismatic gems.
+
+        Every item contributes to at most one gem because
+        extract_gems() returns at most one prismatic gem.
+        """
+
+        counters = {
+            gem: 0
+            for gem in PRISMATIC_GEMS
+        }
+
+        for item in items:
+            gems = item.get("gems", [])
+
+            if not gems:
+                continue
+
+            # One item = one prismatic gem.
+            gem = gems[0]
+
+            if gem in counters:
+                counters[gem] += 1
+
+        return [
+            {
+                "name": gem,
+                "count": counters[gem],
+            }
+            for gem in PRISMATIC_GEMS
+        ]
 
     async def search(
         self,
@@ -365,7 +412,6 @@ class SearchService:
                     "quality_number": quality_number,
                     "quality_total": quality_total,
                     "quality": quality_label,
-                    "gem_mode": gem_mode,
                 },
             }
 
@@ -401,7 +447,6 @@ class SearchService:
                     "quality_total": quality_total,
                     "found_for_quality": len(items),
                     "total_found": len(all_items),
-                    "gem_mode": gem_mode,
                 },
             }
 
@@ -418,6 +463,7 @@ class SearchService:
             class_id = str(
                 item.get("i_classid", "")
             )
+
             instance_id = str(
                 item.get("i_instanceid", "")
             )
@@ -442,25 +488,15 @@ class SearchService:
         ]
 
         if not item_hashes:
-            if gem_mode:
-                yield {
-                    "type": "result",
-                    "data": {
-                        "count": 0,
-                        "items": [],
-                        "gem_mode": True,
-                        "gem_counts": {},
-                    },
-                }
-            else:
-                yield {
-                    "type": "result",
-                    "data": {
-                        "count": 0,
-                        "items": [],
-                    },
-                }
-
+            yield {
+                "type": "result",
+                "data": {
+                    "count": 0,
+                    "items": [],
+                    "gems": [],
+                    "gem_mode": gem_mode,
+                },
+            }
             return
 
         # ==================================================
@@ -484,12 +520,12 @@ class SearchService:
                 "percent": 25,
                 "stage": "Получение данных",
                 "message": (
-                    f"Подготовлено {len(unique_items)} "
+                    f"Подготовлено "
+                    f"{len(unique_items)} "
                     f"уникальных предметов"
                 ),
                 "total_items": len(unique_items),
                 "total_batches": total_batches,
-                "gem_mode": gem_mode,
             },
         }
 
@@ -546,12 +582,11 @@ class SearchService:
                     "descriptions": len(
                         all_mass_results
                     ),
-                    "gem_mode": gem_mode,
                 },
             }
 
         # ==================================================
-        # ЭТАП 3. АНАЛИЗ
+        # ЭТАП 3. ОБРАБОТКА ПРЕДМЕТОВ
         # ==================================================
 
         matched_items: list[
@@ -562,38 +597,19 @@ class SearchService:
             all_mass_results
         )
 
-        # Счётчики гемов.
-        gem_counts = {
-            gem: 0
-            for gem in PRISMATIC_GEM_ALIASES
-        }
-
-        unique_items_with_gems = 0
-
         yield {
             "type": "progress",
             "data": {
                 "percent": 82,
-                "stage": (
-                    "Анализ гемов"
-                    if gem_mode
-                    else "Проверка описаний"
-                ),
+                "stage": "Обработка предметов",
                 "message": (
-                    (
-                        f"Анализируем {total_results} "
-                        f"описаний на наличие гемов..."
-                    )
-                    if gem_mode
-                    else (
-                        f"Проверяем {total_results} "
-                        f"описаний..."
-                    )
+                    f"Обрабатываем "
+                    f"{total_results} "
+                    f"предметов..."
                 ),
                 "checked": 0,
                 "total": total_results,
                 "matches": 0,
-                "gem_mode": gem_mode,
             },
         }
 
@@ -605,111 +621,103 @@ class SearchService:
                 "info"
             ) or {}
 
-            raw_description = info.get(
+            description = info.get(
                 "description"
             )
 
-            # ==================================================
-            # РЕЖИМ ВСЕХ ГЕМОВ
-            # ==================================================
+            description_text = (
+                extract_description_text(
+                    description
+                )
+            )
 
+            # В обычном режиме проверяем описание.
+            # В gem_mode сохраняем все предметы.
             if gem_mode:
-                found_gems = (
-                    self._find_gems_in_description(
-                        raw_description
+                is_match = True
+            else:
+                is_match = description_contains(
+                    description,
+                    description_query,
+                )
+
+            if is_match:
+                class_id = str(
+                    item_data.get(
+                        "classid",
+                        "",
                     )
                 )
 
-                if found_gems:
-                    unique_items_with_gems += 1
-
-                for gem_name in found_gems:
-                    gem_counts[gem_name] += 1
-
-            # ==================================================
-            # ОБЫЧНЫЙ РЕЖИМ
-            # ==================================================
-
-            else:
-                if description_contains(
-                    raw_description,
-                    description_query,
-                ):
-                    class_id = str(
-                        item_data.get(
-                            "classid",
-                            "",
-                        )
+                instance_id = str(
+                    item_data.get(
+                        "instanceid",
+                        "",
                     )
+                )
 
-                    instance_id = str(
-                        item_data.get(
-                            "instanceid",
-                            "",
-                        )
-                    )
-
-                    market_item = (
-                        items_by_hash.get(
-                            (
-                                class_id,
-                                instance_id,
-                            ),
-                            {},
-                        )
-                    )
-
-                    market_name = info.get(
-                        "market_hash_name",
-                        market_item.get(
-                            "market_hash_name",
-                            item_name,
+                market_item = (
+                    items_by_hash.get(
+                        (
+                            class_id,
+                            instance_id,
                         ),
+                        {},
+                    )
+                )
+
+                market_name = info.get(
+                    "market_hash_name",
+                    market_item.get(
+                        "market_hash_name",
+                        item_name,
+                    ),
+                )
+
+                price = market_item.get(
+                    "price"
+                )
+
+                price_rub = None
+
+                if price is not None:
+                    price_rub = (
+                        int(price) / 100
                     )
 
-                    price = market_item.get(
-                        "price"
+                market_url = (
+                    "https://market.dota2.net/item/"
+                    f"{class_id}-{instance_id}-"
+                    f"{quote(market_name, safe='')}/"
+                )
+
+                gems = (
+                    SearchService.extract_gems(
+                        description
                     )
+                )
 
-                    price_rub = None
-
-                    if price is not None:
-                        price_rub = (
-                            int(price) / 100
-                        )
-
-                    market_url = (
-                        "https://market.dota2.net/item/"
-                        f"{class_id}-{instance_id}-"
-                        f"{quote(market_name, safe='')}/"
-                    )
-
-                    matched_items.append(
-                        {
-                            "name": market_name,
-                            "class_id": class_id,
-                            "instance_id": instance_id,
-                            "price": price,
-                            "price_rub": price_rub,
-                            "offers": market_item.get(
-                                "offers"
-                            ),
-                            "description": raw_description,
-                            "description_text": (
-                                extract_description_text(
-                                    raw_description
-                                )
-                            ),
-                            "url": market_url,
-                            "image": info.get(
-                                "image"
-                            ),
-                        }
-                    )
-
-            # ==================================================
-            # ПРОГРЕСС
-            # ==================================================
+                matched_items.append(
+                    {
+                        "name": market_name,
+                        "class_id": class_id,
+                        "instance_id": instance_id,
+                        "price": price,
+                        "price_rub": price_rub,
+                        "offers": market_item.get(
+                            "offers"
+                        ),
+                        "description": description,
+                        "description_text": (
+                            description_text
+                        ),
+                        "url": market_url,
+                        "image": info.get(
+                            "image"
+                        ),
+                        "gems": gems,
+                    }
+                )
 
             if (
                 index == total_results
@@ -727,109 +735,57 @@ class SearchService:
                     * 16
                 )
 
-                if gem_mode:
-                    message = (
-                        f"Проверено {index} "
-                        f"из {total_results}. "
-                        f"Найдено предметов с гемами: "
-                        f"{unique_items_with_gems}"
-                    )
-                else:
-                    message = (
-                        f"Проверено {index} "
-                        f"из {total_results}"
-                    )
-
                 yield {
                     "type": "progress",
                     "data": {
-                        "percent": round(percent),
-                        "stage": (
-                            "Анализ гемов"
-                            if gem_mode
-                            else "Проверка описаний"
+                        "percent": round(
+                            percent
                         ),
-                        "message": message,
+                        "stage": (
+                            "Обработка предметов"
+                        ),
+                        "message": (
+                            f"Проверено {index} "
+                            f"из {total_results}"
+                        ),
                         "checked": index,
                         "total": total_results,
-                        "matches": (
-                            unique_items_with_gems
-                            if gem_mode
-                            else len(matched_items)
+                        "matches": len(
+                            matched_items
                         ),
-                        "gem_mode": gem_mode,
                     },
                 }
 
         # ==================================================
-        # РЕЖИМ ВСЕХ ГЕМОВ — РЕЗУЛЬТАТ
+        # СТАТИСТИКА ГЕМОВ
         # ==================================================
 
-        if gem_mode:
-            # Убираем гемы, которых нет ни в одном
-            # найденном предмете.
-            gem_counts = {
-                gem: count
-                for gem, count in gem_counts.items()
-                if count > 0
-            }
-
-            # Сортируем по количеству предметов.
-            gem_counts = dict(
-                sorted(
-                    gem_counts.items(),
-                    key=lambda pair: (
-                        -pair[1],
-                        pair[0].lower(),
-                    ),
-                )
+        gem_statistics = (
+            self.build_gem_statistics(
+                matched_items
             )
+        )
 
-            yield {
-                "type": "progress",
-                "data": {
-                    "percent": 99,
-                    "stage": "Формирование результата",
-                    "message": (
-                        f"Найдено {len(gem_counts)} "
-                        f"видов призматических гемов"
-                    ),
-                    "gem_types": len(gem_counts),
-                    "gem_items": unique_items_with_gems,
-                    "gem_mode": True,
-                },
-            }
-
-            yield {
-                "type": "result",
-                "data": {
-                    "count": unique_items_with_gems,
-                    "items": [],
-                    "gem_mode": True,
-                    "gem_counts": gem_counts,
-                },
-            }
-
-            yield {
-                "type": "progress",
-                "data": {
-                    "percent": 100,
-                    "stage": "Готово",
-                    "message": (
-                        f"Поиск гемов завершён. "
-                        f"Найдено предметов: "
-                        f"{unique_items_with_gems}"
-                    ),
-                    "matches": unique_items_with_gems,
-                    "gem_types": len(gem_counts),
-                    "gem_mode": True,
-                },
-            }
-
-            return
+        yield {
+            "type": "progress",
+            "data": {
+                "percent": 99,
+                "stage": "Формирование результата",
+                "message": (
+                    f"Обработано предметов: "
+                    f"{len(matched_items)}"
+                ),
+                "matches": len(
+                    matched_items
+                ),
+                "gems": len(
+                    gem_statistics
+                ),
+            },
+        }
 
         # ==================================================
-        # ОБЫЧНЫЙ РЕЖИМ — СОРТИРОВКА
+        # СОРТИРОВКА
         # ==================================================
 
         matched_items.sort(
@@ -840,20 +796,9 @@ class SearchService:
             )
         )
 
-        yield {
-            "type": "progress",
-            "data": {
-                "percent": 99,
-                "stage": "Формирование результата",
-                "message": (
-                    f"Найдено совпадений: "
-                    f"{len(matched_items)}"
-                ),
-                "matches": len(
-                    matched_items
-                ),
-            },
-        }
+        # ==================================================
+        # ГОТОВО
+        # ==================================================
 
         yield {
             "type": "result",
@@ -862,6 +807,8 @@ class SearchService:
                     matched_items
                 ),
                 "items": matched_items,
+                "gems": gem_statistics,
+                "gem_mode": gem_mode,
             },
         }
 

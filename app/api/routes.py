@@ -58,7 +58,7 @@ async def search(
     item_name: str = Form(...),
     description: str = Form(""),
     qualities: str = Form("all"),
-    gem_mode: bool = Form(False),
+    gem_mode: str = Form("false"),
 ):
     item_name = item_name.strip()
     description = description.strip()
@@ -69,9 +69,9 @@ async def search(
             detail="Введите название предмета",
         )
 
-    # В обычном режиме описание обязательно.
-    # В режиме "Все гемы" оно не требуется.
-    if not gem_mode and not description:
+    is_gem_mode = gem_mode.lower() == "true"
+
+    if not is_gem_mode and not description:
         raise HTTPException(
             status_code=400,
             detail="Введите описание для поиска",
@@ -96,7 +96,6 @@ async def search(
                     "message": (
                         "Подготавливаем поиск..."
                     ),
-                    "gem_mode": gem_mode,
                 },
             )
 
@@ -104,7 +103,7 @@ async def search(
                 item_name=item_name,
                 description_query=description,
                 qualities=selected_qualities,
-                gem_mode=gem_mode,
+                gem_mode=is_gem_mode,
             ):
                 update_type = update.get("type")
 
