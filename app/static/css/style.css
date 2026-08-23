@@ -73,17 +73,32 @@ h1 {
     border: 1px solid #ddd;
     border-radius: 10px;
     background: #fafafa;
+    transition: box-shadow 0.2s ease;
 }
 
-.result-card h3 {
-    margin-top: 0;
-    margin-bottom: 10px;
+.result-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.result-title {
+    margin: 0 0 10px;
+    font-size: 18px;
 }
 
 .result-price {
     margin-bottom: 8px;
     font-size: 20px;
     font-weight: bold;
+}
+
+.result-offers {
+    margin-bottom: 8px;
+    color: #555;
+}
+
+.result-card h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
 }
 
 .result-count {

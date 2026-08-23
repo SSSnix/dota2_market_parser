@@ -1,9 +1,10 @@
+import asyncio
 import os
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 from dotenv import load_dotenv
-
 
 load_dotenv()
 
@@ -24,13 +25,12 @@ class MarketAPI:
         market_hash_name: str,
     ) -> dict[str, Any]:
         url = (
-            f"{self.BASE_URL}/v2/"
-            "search-item-by-hash-name"
+            f"{self.BASE_URL}/SearchItemByName/"
+            f"{quote(market_hash_name, safe='')}/"
         )
 
         params = {
             "key": self.api_key,
-            "hash_name": market_hash_name,
         }
 
         async with httpx.AsyncClient(
@@ -75,12 +75,12 @@ class MarketAPI:
         return response.json()
 
     async def get_mass_info(
-        self,
-        item_hashes: list[str],
-        sell: int = 0,
-        buy: int = 0,
-        history: int = 0,
-        info: int = 3,
+            self,
+            item_hashes: list[str],
+            sell: int = 0,
+            buy: int = 0,
+            history: int = 0,
+            info: int = 3,
     ) -> dict[str, Any]:
         if not item_hashes:
             return {
@@ -107,15 +107,29 @@ class MarketAPI:
             "list": ",".join(item_hashes),
         }
 
-        async with httpx.AsyncClient(
-            timeout=60.0
-        ) as client:
-            response = await client.post(
-                url,
-                params=params,
-                data=data,
-            )
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient(
+                        timeout=60.0
+                ) as client:
+                    response = await client.post(
+                        url,
+                        params=params,
+                        data=data,
+                    )
 
-        response.raise_for_status()
+                response.raise_for_status()
 
-        return response.json()
+                return response.json()
+
+            except httpx.HTTPStatusError as error:
+                status_code = error.response.status_code
+
+                if status_code != 502 or attempt == 2:
+                    raise
+
+                await asyncio.sleep(2)
+
+        raise RuntimeError(
+            "Не удалось получить данные MassInfo"
+        )

@@ -9,8 +9,20 @@ from app.services.market_api import MarketAPI
 
 
 class SearchService:
+    MASS_INFO_BATCH_SIZE = 100
+
     def __init__(self) -> None:
         self.market_api = MarketAPI()
+
+    @staticmethod
+    def _chunks(
+        items: list[str],
+        size: int,
+    ) -> list[list[str]]:
+        return [
+            items[index:index + size]
+            for index in range(0, len(items), size)
+        ]
 
     async def search(
         self,
@@ -21,38 +33,47 @@ class SearchService:
             item_name,
         )
 
-        items = search_result.get("data", [])
+        items = search_result.get("list", [])
 
         if not items:
             return []
 
         items_by_hash = {
             (
-                str(item["class"]),
-                str(item["instance"]),
+                str(item["i_classid"]),
+                str(item["i_instanceid"]),
             ): item
             for item in items
         }
 
         item_hashes = [
-            f"{item['class']}_{item['instance']}"
+            f"{item['i_classid']}_{item['i_instanceid']}"
             for item in items
         ]
 
-        mass_result = await self.market_api.get_mass_info(
-            item_hashes=item_hashes,
-            sell=0,
-            buy=0,
-            history=0,
-            info=3,
+        batches = self._chunks(
+            item_hashes,
+            self.MASS_INFO_BATCH_SIZE,
         )
+
+        mass_results: list[dict[str, Any]] = []
+
+        for batch in batches:
+            mass_result = await self.market_api.get_mass_info(
+                item_hashes=batch,
+                sell=0,
+                buy=0,
+                history=0,
+                info=3,
+            )
+
+            mass_results.extend(
+                mass_result.get("results", [])
+            )
 
         results = []
 
-        for item_data in mass_result.get(
-            "results",
-            [],
-        ):
+        for item_data in mass_results:
             info = item_data.get("info") or {}
             description = info.get("description")
 
@@ -76,7 +97,7 @@ class SearchService:
             )
 
             price = market_item.get("price")
-            count = market_item.get("count")
+            offers = market_item.get("offers")
 
             market_url = (
                 "https://market.dota2.net/item/"
@@ -96,7 +117,7 @@ class SearchService:
                     "instance_id": instance_id,
                     "price": price,
                     "price_rub": price_rub,
-                    "count": count,
+                    "offers": offers,
                     "description": description,
                     "description_text": (
                         extract_description_text(

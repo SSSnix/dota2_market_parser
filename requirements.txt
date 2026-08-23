@@ -5,3 +5,4 @@ jinja2
 pydantic
 python-dotenv
 beautifulsoup4
+python-multipart

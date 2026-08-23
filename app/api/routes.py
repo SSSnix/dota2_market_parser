@@ -1,4 +1,10 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import (
+    APIRouter,
+    Form,
+    HTTPException,
+    Request,
+)
+import httpx
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
@@ -27,8 +33,8 @@ async def index(request: Request):
 
 @router.post("/api/search")
 async def search(
-    item_name: str,
-    description: str,
+    item_name: str = Form(...),
+    description: str = Form(...),
 ):
     item_name = item_name.strip()
     description = description.strip()
@@ -45,10 +51,20 @@ async def search(
             detail="Введите описание для поиска",
         )
 
-    results = await search_service.search(
-        item_name=item_name,
-        description_query=description,
-    )
+    try:
+        results = await search_service.search(
+            item_name=item_name,
+            description_query=description,
+        )
+
+    except httpx.HTTPStatusError as error:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Market API временно недоступен. "
+                "Попробуйте повторить поиск."
+            ),
+        ) from error
 
     return {
         "count": len(results),

@@ -20,18 +20,23 @@ function createResultCard(item) {
     card.className = "result-card";
 
     const title = document.createElement("h3");
+    title.className = "result-title";
     title.textContent = item.name;
 
     const price = document.createElement("div");
     price.className = "result-price";
-    price.textContent = item.price_rub !== null
-        ? `${item.price_rub.toFixed(2)} ₽`
-        : "Цена неизвестна";
 
-    const count = document.createElement("div");
-    count.className = "result-count";
-    count.textContent =
-        `Количество: ${item.count ?? "неизвестно"}`;
+    if (item.price_rub !== null) {
+        price.textContent =
+            `${item.price_rub.toFixed(2)} ₽`;
+    } else {
+        price.textContent = "Цена неизвестна";
+    }
+
+    const offers = document.createElement("div");
+    offers.className = "result-offers";
+    offers.textContent =
+        `Предложений: ${item.offers ?? "неизвестно"}`;
 
     const identifiers = document.createElement("div");
     identifiers.className = "result-identifiers";
@@ -52,7 +57,7 @@ function createResultCard(item) {
 
     card.appendChild(title);
     card.appendChild(price);
-    card.appendChild(count);
+    card.appendChild(offers);
     card.appendChild(description);
     card.appendChild(identifiers);
     card.appendChild(link);
@@ -71,6 +76,7 @@ function renderResults(data) {
 
     const header = document.createElement("div");
     header.className = "results-header";
+
     header.textContent =
         `Найдено вариантов: ${data.count}`;
 
