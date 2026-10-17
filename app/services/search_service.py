@@ -80,6 +80,8 @@ PRISMATIC_GEMS = [
     "Plushy Shag",
     "Explosive Burst",
     "Legacy",
+    "Cursed Black",
+    "Золото Hand of Midas",
 ]
 
 
@@ -193,6 +195,12 @@ PRISMATIC_GEM_ALIASES = {
     "Midas Gold": [
         "Midas Gold",
         "Золото Мидаса",
+    ],
+    "Cursed Black": [
+        "Cursed Black"
+    ],
+    "Золото Hand of Midas": [
+        "Золото Hand of Midas"
     ],
     "Green Planet": [
         "Green Planet",
